@@ -4,6 +4,7 @@ import { User } from '@/types/auth'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import { PAGE_ROUTES } from '@/lib/constants'
+import { ThemeToggleButton } from '@/components/theme/theme-toggle'
 
 interface HeaderProps {
   user: User
@@ -31,6 +32,9 @@ export function Header({ user }: HeaderProps) {
         </div>
         
         <div className="flex items-center space-x-4">
+          {/* 主题切换 */}
+          <ThemeToggleButton />
+          
           {/* 通知 */}
           <button className="p-2 text-gray-400 hover:text-gray-600">
             <span className="sr-only">通知</span>
