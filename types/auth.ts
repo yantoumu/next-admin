@@ -1,4 +1,4 @@
-export type UserRole = 'super_admin' | 'admin' | 'member' | 'viewer'
+export type UserRole = 'super_admin' | 'admin' | 'editor' | 'member' | 'viewer'
 
 export interface User {
   id: string
@@ -35,3 +35,24 @@ export interface UpdateUserRequest {
   role?: UserRole
   password?: string
 }
+
+/**
+ * 角色兼容性映射 - 支持旧系统角色名称
+ */
+export const ROLE_COMPATIBILITY = {
+  'administrator': 'admin',
+  'user': 'member',
+  'editor': 'editor',
+  'moderator': 'editor'
+} as const
+
+/**
+ * 角色显示名称映射
+ */
+export const ROLE_DISPLAY_NAMES = {
+  'super_admin': '超级管理员',
+  'admin': '管理员',
+  'editor': '编辑员',
+  'member': '成员',
+  'viewer': '访客'
+} as const

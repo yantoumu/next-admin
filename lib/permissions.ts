@@ -5,7 +5,7 @@ import { UserRole } from '@/types/auth'
  */
 export const PERMISSIONS = {
   // 用户管理
-  'users.view': ['super_admin', 'admin'],
+  'users.view': ['super_admin', 'admin', 'editor'],
   'users.create': ['super_admin', 'admin'], 
   'users.edit': ['super_admin', 'admin'],
   'users.delete': ['super_admin'],
@@ -15,11 +15,17 @@ export const PERMISSIONS = {
   'settings.edit': ['super_admin'],
   
   // 仪表板
-  'dashboard.view': ['super_admin', 'admin', 'member', 'viewer'],
+  'dashboard.view': ['super_admin', 'admin', 'editor', 'member', 'viewer'],
   
   // 个人资料
-  'profile.view': ['super_admin', 'admin', 'member', 'viewer'],
-  'profile.edit': ['super_admin', 'admin', 'member', 'viewer'],
+  'profile.view': ['super_admin', 'admin', 'editor', 'member', 'viewer'],
+  'profile.edit': ['super_admin', 'admin', 'editor', 'member', 'viewer'],
+  
+  // 内容管理 (editor特有权限)
+  'content.view': ['super_admin', 'admin', 'editor'],
+  'content.edit': ['super_admin', 'admin', 'editor'],
+  'content.create': ['super_admin', 'admin', 'editor'],
+  'content.delete': ['super_admin', 'admin'],
 } as const
 
 export type Permission = keyof typeof PERMISSIONS
@@ -62,8 +68,9 @@ export function isHigherRole(roleA: UserRole, roleB: UserRole): boolean {
   const roleHierarchy: Record<UserRole, number> = {
     'viewer': 1,
     'member': 2,
-    'admin': 3,
-    'super_admin': 4
+    'editor': 3,
+    'admin': 4,
+    'super_admin': 5
   }
   
   return roleHierarchy[roleA] > roleHierarchy[roleB]
@@ -78,8 +85,13 @@ export function canManageUser(currentUserRole: UserRole, targetUserRole: UserRol
     return true
   }
   
-  // 管理员可以管理成员和访客，但不能管理其他管理员
+  // 管理员可以管理编辑员、成员和访客，但不能管理其他管理员
   if (currentUserRole === 'admin') {
+    return ['editor', 'member', 'viewer'].includes(targetUserRole)
+  }
+  
+  // 编辑员可以管理成员和访客
+  if (currentUserRole === 'editor') {
     return ['member', 'viewer'].includes(targetUserRole)
   }
   
