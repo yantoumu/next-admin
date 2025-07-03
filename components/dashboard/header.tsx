@@ -1,11 +1,14 @@
 'use client'
 
 import { User } from '@/types/auth'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { PAGE_ROUTES } from '@/lib/constants'
 import { ThemeToggleButton } from '@/components/theme/theme-toggle'
 import { SerializedUser } from '@/lib/serialization'
 import { Menu } from 'lucide-react'
+import { Breadcrumb } from './breadcrumb'
+import { Tabs } from './tabs'
+import { useTabs } from '@/lib/tabs-context'
 
 interface HeaderProps {
   user: SerializedUser
@@ -15,6 +18,11 @@ interface HeaderProps {
 
 export function Header({ user, isSidebarCollapsed, onToggleSidebar }: HeaderProps) {
   const router = useRouter()
+  const pathname = usePathname()
+  const { getTabByPath } = useTabs()
+
+  // 获取当前页面的标签信息
+  const currentTab = getTabByPath(pathname)
 
   const handleLogout = async () => {
     try {
@@ -31,38 +39,43 @@ export function Header({ user, isSidebarCollapsed, onToggleSidebar }: HeaderProp
   }
 
   return (
-    <header className="bg-white border-b border-gray-200 px-6 py-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center">
+    <header className="bg-white border-b border-gray-200">
+      {/* 顶部工具栏 */}
+      <div className="flex items-center justify-between px-6 py-4">
+        <div className="flex items-center flex-1 min-w-0">
           {/* 侧边栏切换按钮 */}
           {onToggleSidebar && (
             <button
               onClick={onToggleSidebar}
-              className="p-2 rounded-md hover:bg-gray-100 transition-colors mr-4"
+              className="p-2 rounded-md hover:bg-gray-100 transition-colors mr-4 flex-shrink-0"
               title={isSidebarCollapsed ? '展开侧边栏' : '收起侧边栏'}
             >
               <Menu size={20} />
             </button>
           )}
 
-          <h1 className="text-lg font-semibold text-gray-900">
-            仪表板
-          </h1>
+          {/* 面包屑导航 */}
+          <div className="flex-1 min-w-0">
+            {currentTab && (
+              <Breadcrumb items={currentTab.breadcrumbs} />
+            )}
+          </div>
         </div>
-        
-        <div className="flex items-center space-x-4">
+
+        {/* 右侧工具栏 */}
+        <div className="flex items-center space-x-4 flex-shrink-0">
           {/* 主题切换 */}
           <ThemeToggleButton />
-          
+
           {/* 通知 */}
           <button className="p-2 text-gray-400 hover:text-gray-600">
             <span className="sr-only">通知</span>
             🔔
           </button>
-          
+
           {/* 用户菜单 */}
           <div className="relative">
-            <button 
+            <button
               className="flex items-center space-x-2 text-sm text-gray-700 hover:text-gray-900"
               onClick={handleLogout}
             >
@@ -74,6 +87,11 @@ export function Header({ user, isSidebarCollapsed, onToggleSidebar }: HeaderProp
             </button>
           </div>
         </div>
+      </div>
+
+      {/* 标签页容器 */}
+      <div className="px-6">
+        <Tabs />
       </div>
     </header>
   )

@@ -46,6 +46,12 @@ export function ThemeToggle() {
 
 export function ThemeToggleButton() {
   const { theme, setTheme } = useTheme()
+  const [mounted, setMounted] = React.useState(false)
+
+  // 防止hydration mismatch：只在客户端挂载后渲染实际内容
+  React.useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const toggleTheme = () => {
     if (theme === 'light') {
@@ -58,6 +64,11 @@ export function ThemeToggleButton() {
   }
 
   const getIcon = () => {
+    // 在挂载前返回默认图标，避免hydration mismatch
+    if (!mounted) {
+      return <Monitor className="h-4 w-4" />
+    }
+
     switch (theme) {
       case 'light':
         return <Sun className="h-4 w-4" />
@@ -69,6 +80,10 @@ export function ThemeToggleButton() {
   }
 
   const getLabel = () => {
+    if (!mounted) {
+      return '主题切换'
+    }
+
     switch (theme) {
       case 'light':
         return '浅色模式'
@@ -86,6 +101,7 @@ export function ThemeToggleButton() {
       onClick={toggleTheme}
       className="flex items-center gap-2"
       title={`当前: ${getLabel()}, 点击切换`}
+      disabled={!mounted} // 挂载前禁用按钮
     >
       {getIcon()}
       <span className="sr-only">切换主题</span>
