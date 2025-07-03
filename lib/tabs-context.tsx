@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect } from 'react'
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 
 export interface Tab {
@@ -37,41 +37,59 @@ const PATH_TITLES: Record<string, string> = {
   '/dashboard/profile': '个人资料',
 }
 
-// 生成面包屑导航
+// 缓存面包屑生成结果，避免重复计算
+const breadcrumbsCache = new Map<string, BreadcrumbItem[]>()
+
+// 生成面包屑导航（带缓存优化）
 function generateBreadcrumbs(path: string): BreadcrumbItem[] {
+  // 检查缓存
+  if (breadcrumbsCache.has(path)) {
+    return breadcrumbsCache.get(path)!
+  }
+
   const breadcrumbs: BreadcrumbItem[] = []
-  
+
   // 总是从首页开始
   breadcrumbs.push({ title: '首页', path: '/dashboard' })
-  
+
   if (path === '/dashboard') {
+    breadcrumbsCache.set(path, breadcrumbs)
     return breadcrumbs
   }
-  
+
   // 解析路径段
   const segments = path.split('/').filter(Boolean)
   let currentPath = ''
-  
+
   for (let i = 0; i < segments.length; i++) {
     currentPath += '/' + segments[i]
-    
+
     // 跳过 'dashboard' 段，因为已经添加了首页
     if (segments[i] === 'dashboard') {
       continue
     }
-    
+
     const title = PATH_TITLES[currentPath]
     if (title) {
       breadcrumbs.push({ title, path: currentPath })
     }
   }
-  
+
+  // 缓存结果
+  breadcrumbsCache.set(path, breadcrumbs)
   return breadcrumbs
 }
 
-// 生成标签页标题
+// 生成标签页标题（带缓存优化）
+const titleCache = new Map<string, string>()
 function generateTabTitle(path: string): string {
-  return PATH_TITLES[path] || '未知页面'
+  if (titleCache.has(path)) {
+    return titleCache.get(path)!
+  }
+
+  const title = PATH_TITLES[path] || '未知页面'
+  titleCache.set(path, title)
+  return title
 }
 
 export function TabsProvider({ children }: { children: React.ReactNode }) {
@@ -83,8 +101,8 @@ export function TabsProvider({ children }: { children: React.ReactNode }) {
   // 生成唯一ID
   const generateTabId = (path: string) => `tab-${path.replace(/\//g, '-')}`
 
-  // 添加标签页（保留接口兼容性，但内部使用统一逻辑）
-  const addTab = (tabData: Omit<Tab, 'id'>) => {
+  // 缓存添加标签页函数，避免重新创建
+  const addTab = useCallback((tabData: Omit<Tab, 'id'>) => {
     const id = generateTabId(tabData.path)
 
     setTabs(prevTabs => {
@@ -99,45 +117,54 @@ export function TabsProvider({ children }: { children: React.ReactNode }) {
         return [...prevTabs, newTab]
       }
     })
-  }
+  }, [])
 
-  // 移除标签页
-  const removeTab = (tabId: string) => {
+  // 缓存移除标签页函数
+  const removeTab = useCallback((tabId: string) => {
     setTabs(prev => {
       const newTabs = prev.filter(tab => tab.id !== tabId)
-      
+
       // 如果删除的是当前活跃标签，切换到最后一个标签
       if (tabId === activeTabId && newTabs.length > 0) {
         const lastTab = newTabs[newTabs.length - 1]
         setActiveTabId(lastTab.id)
         router.push(lastTab.path)
       }
-      
+
       return newTabs
     })
-  }
+  }, [activeTabId, router])
 
-  // 设置活跃标签
-  const setActiveTab = (tabId: string) => {
+  // 缓存设置活跃标签函数
+  const setActiveTab = useCallback((tabId: string) => {
     const tab = tabs.find(t => t.id === tabId)
     if (tab) {
       setActiveTabId(tabId)
       router.push(tab.path)
     }
-  }
+  }, [tabs, router])
 
-  // 根据路径获取标签
-  const getTabByPath = (path: string): Tab | undefined => {
+  // 缓存根据路径获取标签函数
+  const getTabByPath = useCallback((path: string): Tab | undefined => {
     return tabs.find(tab => tab.path === path)
-  }
+  }, [tabs])
+
+  // 缓存标签数据生成，避免重复计算
+  const tabData = useMemo(() => {
+    if (!pathname.startsWith('/dashboard')) return null
+
+    return {
+      breadcrumbs: generateBreadcrumbs(pathname),
+      title: generateTabTitle(pathname),
+      tabId: generateTabId(pathname)
+    }
+  }, [pathname])
 
   // 统一的标签管理：监听路径变化，自动添加/切换标签
   useEffect(() => {
-    if (!pathname.startsWith('/dashboard')) return
+    if (!tabData) return
 
-    const breadcrumbs = generateBreadcrumbs(pathname)
-    const title = generateTabTitle(pathname)
-    const tabId = generateTabId(pathname)
+    const { breadcrumbs, title, tabId } = tabData
 
     // 使用函数式更新确保状态一致性
     setTabs(prevTabs => {
@@ -160,16 +187,17 @@ export function TabsProvider({ children }: { children: React.ReactNode }) {
         return [...prevTabs, newTab]
       }
     })
-  }, [pathname])
+  }, [tabData, pathname])
 
-  const value: TabsContextType = {
+  // 缓存context value，避免不必要的重新渲染
+  const value: TabsContextType = useMemo(() => ({
     tabs,
     activeTabId,
     addTab,
     removeTab,
     setActiveTab,
     getTabByPath
-  }
+  }), [tabs, activeTabId, addTab, removeTab, setActiveTab, getTabByPath])
 
   return (
     <TabsContext.Provider value={value}>

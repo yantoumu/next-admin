@@ -9,6 +9,7 @@ import { Menu } from 'lucide-react'
 import { Breadcrumb } from './breadcrumb'
 import { Tabs } from './tabs'
 import { useTabs } from '@/lib/tabs-context'
+import { memo, useCallback, useMemo } from 'react'
 
 interface HeaderProps {
   user: SerializedUser
@@ -16,15 +17,16 @@ interface HeaderProps {
   onToggleSidebar?: () => void
 }
 
-export function Header({ user, isSidebarCollapsed, onToggleSidebar }: HeaderProps) {
+const HeaderComponent = function Header({ user, isSidebarCollapsed, onToggleSidebar }: HeaderProps) {
   const router = useRouter()
   const pathname = usePathname()
   const { getTabByPath } = useTabs()
 
-  // 获取当前页面的标签信息
-  const currentTab = getTabByPath(pathname)
+  // 缓存当前页面的标签信息
+  const currentTab = useMemo(() => getTabByPath(pathname), [getTabByPath, pathname])
 
-  const handleLogout = async () => {
+  // 缓存登出处理函数
+  const handleLogout = useCallback(async () => {
     try {
       const response = await fetch('/api/auth/logout', {
         method: 'POST'
@@ -36,7 +38,7 @@ export function Header({ user, isSidebarCollapsed, onToggleSidebar }: HeaderProp
     } catch (error) {
       console.error('Logout error:', error)
     }
-  }
+  }, [router])
 
   return (
     <header className="bg-background border-b border-border">
@@ -96,3 +98,6 @@ export function Header({ user, isSidebarCollapsed, onToggleSidebar }: HeaderProp
     </header>
   )
 }
+
+// 使用React.memo优化组件，避免不必要的重新渲染
+export const Header = memo(HeaderComponent)

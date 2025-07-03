@@ -3,12 +3,13 @@
 import Link from 'next/link'
 import { ChevronRight } from 'lucide-react'
 import { BreadcrumbItem } from '@/lib/tabs-context'
+import { memo } from 'react'
 
 interface BreadcrumbProps {
   items: BreadcrumbItem[]
 }
 
-export function Breadcrumb({ items }: BreadcrumbProps) {
+const BreadcrumbComponent = function Breadcrumb({ items }: BreadcrumbProps) {
   if (items.length === 0) return null
 
   return (
@@ -38,3 +39,6 @@ export function Breadcrumb({ items }: BreadcrumbProps) {
     </nav>
   )
 }
+
+// 使用React.memo优化组件，只有items变化时才重新渲染
+export const Breadcrumb = memo(BreadcrumbComponent)

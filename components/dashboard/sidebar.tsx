@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useState } from 'react'
+import { useState, useMemo, useCallback, memo } from 'react'
 import { hasPermission } from '@/lib/permissions'
 import { User } from '@/types/auth'
 import { PAGE_ROUTES } from '@/lib/constants'
@@ -56,37 +56,43 @@ interface SidebarProps {
   onToggleCollapse?: () => void
 }
 
-export function Sidebar({ user, isCollapsed = false, onToggleCollapse }: SidebarProps) {
+const SidebarComponent = function Sidebar({ user, isCollapsed = false, onToggleCollapse }: SidebarProps) {
   const pathname = usePathname()
   const [expandedItems, setExpandedItems] = useState<string[]>([])
 
-  // 切换子菜单展开状态
-  const toggleExpanded = (href: string) => {
+  // 缓存切换子菜单展开状态的函数
+  const toggleExpanded = useCallback((href: string) => {
     setExpandedItems(prev =>
       prev.includes(href)
         ? prev.filter(item => item !== href)
         : [...prev, href]
     )
-  }
+  }, [])
 
-  // 检查是否应该展开（当前路径在子菜单中时自动展开）
-  const shouldExpand = (item: MenuItem) => {
+  // 缓存检查是否应该展开的函数
+  const shouldExpand = useCallback((item: MenuItem) => {
     if (!item.children) return false
     return expandedItems.includes(item.href) ||
            item.children.some(child => pathname.startsWith(child.href))
-  }
-  
-  const filteredMenuItems = menuItems.filter(item => {
-    if (item.permission && !hasPermission(user.role, item.permission as any)) {
-      return false
-    }
-    if (item.children) {
-      item.children = item.children.filter(child => 
-        !child.permission || hasPermission(user.role, child.permission as any)
-      )
-    }
-    return true
-  })
+  }, [expandedItems, pathname])
+
+  // 缓存过滤后的菜单项，只有当用户角色变化时才重新计算
+  const filteredMenuItems = useMemo(() => {
+    return menuItems.filter(item => {
+      if (item.permission && !hasPermission(user.role, item.permission as any)) {
+        return false
+      }
+      if (item.children) {
+        // 创建新的children数组，避免修改原始数据
+        const filteredChildren = item.children.filter(child =>
+          !child.permission || hasPermission(user.role, child.permission as any)
+        )
+        // 返回新的item对象，避免副作用
+        return { ...item, children: filteredChildren }
+      }
+      return item
+    })
+  }, [user.role]) // 只依赖用户角色，避免不必要的重新计算
 
   return (
     <div className={`flex flex-col h-full transition-all duration-300 ${isCollapsed ? 'w-16' : 'w-64'}`}>
@@ -199,3 +205,6 @@ export function Sidebar({ user, isCollapsed = false, onToggleCollapse }: Sidebar
     </div>
   )
 }
+
+// 使用React.memo优化组件，只有props变化时才重新渲染
+export const Sidebar = memo(SidebarComponent)

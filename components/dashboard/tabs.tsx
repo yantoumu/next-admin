@@ -2,9 +2,21 @@
 
 import { X } from 'lucide-react'
 import { useTabs } from '@/lib/tabs-context'
+import { memo, useCallback } from 'react'
 
-export function Tabs() {
+const TabsComponent = function Tabs() {
   const { tabs, activeTabId, setActiveTab, removeTab } = useTabs()
+
+  // 缓存标签点击处理函数
+  const handleTabClick = useCallback((tabId: string) => {
+    setActiveTab(tabId)
+  }, [setActiveTab])
+
+  // 缓存标签关闭处理函数
+  const handleTabClose = useCallback((e: React.MouseEvent, tabId: string) => {
+    e.stopPropagation()
+    removeTab(tabId)
+  }, [removeTab])
 
   if (tabs.length === 0) return null
 
@@ -25,7 +37,7 @@ export function Tabs() {
             >
               {/* 标签内容 */}
               <button
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => handleTabClick(tab.id)}
                 className={`flex items-center px-4 py-2 text-sm font-medium transition-colors min-w-0 ${
                   isActive
                     ? 'text-blue-600'
@@ -36,14 +48,11 @@ export function Tabs() {
                   {tab.title}
                 </span>
               </button>
-              
+
               {/* 关闭按钮 */}
               {tabs.length > 1 && (
                 <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    removeTab(tab.id)
-                  }}
+                  onClick={(e) => handleTabClose(e, tab.id)}
                   className={`p-1 rounded-full transition-colors ml-1 mr-2 ${
                     isActive
                       ? 'hover:bg-gray-100 text-gray-400 hover:text-gray-600'
@@ -66,3 +75,6 @@ export function Tabs() {
     </div>
   )
 }
+
+// 使用React.memo优化组件，避免不必要的重新渲染
+export const Tabs = memo(TabsComponent)
