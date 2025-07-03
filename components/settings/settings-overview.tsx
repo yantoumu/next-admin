@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { User } from '@/types/auth'
+import { User, SerializedUser } from '@/types/auth'
 import { hasPermission } from '@/lib/permissions'
 import { PAGE_ROUTES } from '@/lib/constants'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -20,7 +20,7 @@ import {
 } from 'lucide-react'
 
 interface SettingsOverviewProps {
-  currentUser: User
+  currentUser: SerializedUser
 }
 
 interface SettingSection {

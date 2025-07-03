@@ -6,13 +6,15 @@ import dbConnect from './db'
 import UserModel from './models/User'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
+import { serializeUser, SerializedUser } from './serialization'
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'
 
 /**
  * 获取当前用户信息 (客户端)
+ * 返回序列化安全的用户对象
  */
-export async function getCurrentUser(): Promise<User | null> {
+export async function getCurrentUser(): Promise<SerializedUser | null> {
   try {
     const cookieStore = await cookies()
     const token = cookieStore.get('auth-token')?.value
@@ -26,7 +28,8 @@ export async function getCurrentUser(): Promise<User | null> {
     await dbConnect()
     const user = await UserModel.findById(decoded.userId).select('-password')
 
-    return user ? user.toJSON() : null
+    // 使用序列化函数确保返回的对象是序列化安全的
+    return serializeUser(user)
   } catch (error) {
     console.error('Error getting current user:', error)
     return null
@@ -36,8 +39,9 @@ export async function getCurrentUser(): Promise<User | null> {
 /**
  * 获取当前用户信息 (服务端) - 优化版
  * 支持静态渲染，避免Dynamic Server Usage错误
+ * 返回序列化安全的用户对象
  */
-export async function getCurrentUserServer(isStatic = false): Promise<User | null> {
+export async function getCurrentUserServer(isStatic = false): Promise<SerializedUser | null> {
   try {
     // 静态渲染时直接返回null，避免使用cookies
     if (isStatic) {

@@ -9,6 +9,19 @@ export interface User {
   updated_at: string
 }
 
+/**
+ * 序列化安全的用户类型
+ * 用于Server Component向Client Component传递数据
+ */
+export interface SerializedUser {
+  id: string
+  email: string
+  name: string | null
+  role: string  // 注意：这里是string而不是UserRole枚举
+  created_at: string
+  updated_at: string
+}
+
 export interface AuthContext {
   user: User | null
   isLoading: boolean

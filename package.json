@@ -17,7 +17,8 @@
     "create-admin": "npm run dev-tools create-admin",
     "list-users": "npm run dev-tools list-users",
     "check-db": "npm run dev-tools check-db",
-    "health-check": "export $(cat .env.local | xargs) && tsx scripts/health-check.ts"
+    "health-check": "export $(cat .env.local | xargs) && tsx scripts/health-check.ts",
+    "test-serialization": "export $(cat .env.local | xargs) && tsx scripts/test-serialization.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.0",

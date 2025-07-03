@@ -3,18 +3,20 @@ import { getCurrentUserServer } from './auth'
 import { hasPermission, Permission } from './permissions'
 import { PAGE_ROUTES } from './constants'
 import { User } from '@/types/auth'
+import { SerializedUser } from './serialization'
 
 /**
  * 要求用户已认证
  * 如果未认证，重定向到登录页
+ * 返回序列化安全的用户对象
  */
-export async function requireAuth(): Promise<User> {
+export async function requireAuth(): Promise<SerializedUser> {
   const user = await getCurrentUserServer()
-  
+
   if (!user) {
     redirect(PAGE_ROUTES.LOGIN)
   }
-  
+
   return user
 }
 
@@ -22,14 +24,15 @@ export async function requireAuth(): Promise<User> {
  * 要求用户具有特定权限
  * 如果未认证，重定向到登录页
  * 如果权限不足，重定向到仪表板并显示错误
+ * 返回序列化安全的用户对象
  */
-export async function requirePermission(permission: Permission): Promise<User> {
+export async function requirePermission(permission: Permission): Promise<SerializedUser> {
   const user = await requireAuth()
-  
-  if (!hasPermission(user.role, permission)) {
+
+  if (!hasPermission(user.role as any, permission)) {
     redirect(`${PAGE_ROUTES.DASHBOARD}?error=permission_denied`)
   }
-  
+
   return user
 }
 
