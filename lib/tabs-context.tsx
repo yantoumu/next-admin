@@ -83,17 +83,22 @@ export function TabsProvider({ children }: { children: React.ReactNode }) {
   // 生成唯一ID
   const generateTabId = (path: string) => `tab-${path.replace(/\//g, '-')}`
 
-  // 添加标签页
+  // 添加标签页（保留接口兼容性，但内部使用统一逻辑）
   const addTab = (tabData: Omit<Tab, 'id'>) => {
     const id = generateTabId(tabData.path)
-    const existingTab = tabs.find(tab => tab.path === tabData.path)
-    
-    if (!existingTab) {
-      const newTab: Tab = { ...tabData, id }
-      setTabs(prev => [...prev, newTab])
-    }
-    
-    setActiveTabId(id)
+
+    setTabs(prevTabs => {
+      const existingTab = prevTabs.find(tab => tab.path === tabData.path)
+
+      if (existingTab) {
+        setActiveTabId(existingTab.id)
+        return prevTabs
+      } else {
+        const newTab: Tab = { ...tabData, id }
+        setActiveTabId(id)
+        return [...prevTabs, newTab]
+      }
+    })
   }
 
   // 移除标签页
@@ -126,43 +131,36 @@ export function TabsProvider({ children }: { children: React.ReactNode }) {
     return tabs.find(tab => tab.path === path)
   }
 
-  // 监听路径变化，自动添加/切换标签
+  // 统一的标签管理：监听路径变化，自动添加/切换标签
   useEffect(() => {
-    if (pathname.startsWith('/dashboard')) {
-      const breadcrumbs = generateBreadcrumbs(pathname)
-      const title = generateTabTitle(pathname)
-      const tabId = generateTabId(pathname)
-      
+    if (!pathname.startsWith('/dashboard')) return
+
+    const breadcrumbs = generateBreadcrumbs(pathname)
+    const title = generateTabTitle(pathname)
+    const tabId = generateTabId(pathname)
+
+    // 使用函数式更新确保状态一致性
+    setTabs(prevTabs => {
       // 检查标签是否已存在
-      const existingTab = tabs.find(tab => tab.path === pathname)
-      
-      if (!existingTab) {
+      const existingTab = prevTabs.find(tab => tab.path === pathname)
+
+      if (existingTab) {
+        // 标签已存在，不添加新标签
+        setActiveTabId(existingTab.id)
+        return prevTabs
+      } else {
         // 添加新标签
-        addTab({
+        const newTab: Tab = {
+          id: tabId,
           path: pathname,
           title,
           breadcrumbs
-        })
-      } else {
-        // 切换到现有标签
+        }
         setActiveTabId(tabId)
+        return [...prevTabs, newTab]
       }
-    }
+    })
   }, [pathname])
-
-  // 初始化时添加当前页面标签
-  useEffect(() => {
-    if (pathname.startsWith('/dashboard') && tabs.length === 0) {
-      const breadcrumbs = generateBreadcrumbs(pathname)
-      const title = generateTabTitle(pathname)
-      
-      addTab({
-        path: pathname,
-        title,
-        breadcrumbs
-      })
-    }
-  }, [])
 
   const value: TabsContextType = {
     tabs,
