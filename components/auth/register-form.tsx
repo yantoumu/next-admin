@@ -49,7 +49,7 @@ export function RegisterForm({ currentUser }: RegisterFormProps) {
 
   // 获取当前用户可以创建的角色选项
   const getAvailableRoles = (): UserRole[] => {
-    const allRoles: UserRole[] = ['viewer', 'member', 'editor', 'admin', 'super_admin']
+    const allRoles: UserRole[] = ['viewer', 'member', 'admin', 'super_admin']
     
     if (currentUser.role === 'super_admin') {
       return allRoles

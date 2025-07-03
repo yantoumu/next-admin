@@ -46,7 +46,7 @@ export function UserList({ currentUser }: UserListProps) {
           id: 'editor-user-id',
           email: 'editor@example.com',
           name: 'Demo Editor',
-          role: 'editor',
+          role: 'admin',
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         },
@@ -73,8 +73,6 @@ export function UserList({ currentUser }: UserListProps) {
         return 'destructive'
       case 'admin':
         return 'default'
-      case 'editor':
-        return 'secondary'
       case 'member':
         return 'outline'
       case 'viewer':

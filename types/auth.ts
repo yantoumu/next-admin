@@ -1,4 +1,4 @@
-export type UserRole = 'super_admin' | 'admin' | 'editor' | 'member' | 'viewer'
+export type UserRole = 'super_admin' | 'admin' | 'member' | 'viewer'
 
 export interface User {
   id: string
@@ -41,9 +41,7 @@ export interface UpdateUserRequest {
  */
 export const ROLE_COMPATIBILITY = {
   'administrator': 'admin',
-  'user': 'member',
-  'editor': 'editor',
-  'moderator': 'editor'
+  'user': 'member'
 } as const
 
 /**
@@ -52,7 +50,6 @@ export const ROLE_COMPATIBILITY = {
 export const ROLE_DISPLAY_NAMES = {
   'super_admin': '超级管理员',
   'admin': '管理员',
-  'editor': '编辑员',
   'member': '成员',
   'viewer': '访客'
 } as const

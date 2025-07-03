@@ -32,8 +32,6 @@ export function UserDetail({ user, currentUser }: UserDetailProps) {
         return 'destructive'
       case 'admin':
         return 'default'
-      case 'editor':
-        return 'secondary'
       case 'member':
         return 'outline'
       case 'viewer':
@@ -148,12 +146,6 @@ export function UserDetail({ user, currentUser }: UserDetailProps) {
                   <>
                     <Badge variant="outline" className="text-xs">用户管理</Badge>
                     <Badge variant="outline" className="text-xs">内容管理</Badge>
-                  </>
-                )}
-                {user.role === 'editor' && (
-                  <>
-                    <Badge variant="outline" className="text-xs">内容编辑</Badge>
-                    <Badge variant="outline" className="text-xs">用户查看</Badge>
                   </>
                 )}
                 {(user.role === 'member' || user.role === 'viewer') && (

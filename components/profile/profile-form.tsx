@@ -162,8 +162,6 @@ export function ProfileForm({ user }: ProfileFormProps) {
         return 'destructive'
       case 'admin':
         return 'default'
-      case 'editor':
-        return 'secondary'
       case 'member':
         return 'outline'
       case 'viewer':

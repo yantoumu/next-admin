@@ -25,32 +25,24 @@ export async function getCurrentUser(): Promise<User | null> {
 }
 
 /**
- * 获取当前用户信息 (服务端)
+ * 获取当前用户信息 (服务端) - 优化版
+ * 支持静态渲染，避免Dynamic Server Usage错误
  */
-export async function getCurrentUserServer(): Promise<User | null> {
+export async function getCurrentUserServer(isStatic = false): Promise<User | null> {
   try {
-    const cookieStore = await cookies()
-    const accessToken = cookieStore.get('sb-access-token')?.value
-    
-    if (!accessToken) {
-      // 如果没有访问令牌，返回默认演示用户（开发模式）
-      return await databaseAdapter.getUser('demo-user-id')
+    // 静态渲染时直接返回null，避免使用cookies
+    if (isStatic) {
+      return null
     }
 
-    const serverClient = createServerClient()
-    const { data: { user }, error } = await serverClient.auth.getUser(accessToken)
+    // 动态导入以支持树摇
+    const { AuthProviderFactory } = await import('./auth-context')
+    const authProvider = AuthProviderFactory.create(false)
     
-    if (error || !user) {
-      // 如果认证失败，返回默认演示用户（开发模式）
-      return await databaseAdapter.getUser('demo-user-id')
-    }
-
-    // 使用数据库适配器获取完整用户信息
-    return await databaseAdapter.getUser(user.id)
+    return await authProvider.getUser()
   } catch (error) {
     console.error('Error getting current user (server):', error)
-    // 错误情况下返回默认用户
-    return await databaseAdapter.getUser('demo-user-id')
+    return null
   }
 }
 

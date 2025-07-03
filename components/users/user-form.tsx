@@ -47,7 +47,7 @@ export function UserForm({ currentUser, targetUser, mode }: UserFormProps) {
 
   // 获取当前用户可以设置的角色选项
   const getAvailableRoles = (): UserRole[] => {
-    const allRoles: UserRole[] = ['viewer', 'member', 'editor', 'admin', 'super_admin']
+    const allRoles: UserRole[] = ['viewer', 'member', 'admin', 'super_admin']
     
     // 超级管理员可以设置所有角色
     if (currentUser.role === 'super_admin') {
@@ -60,8 +60,9 @@ export function UserForm({ currentUser, targetUser, mode }: UserFormProps) {
     }
     
     // 编辑员只能设置成员和访客
-    if (currentUser.role === 'editor') {
-      return ['viewer', 'member']
+    // 普通成员无权限设置角色
+    if (currentUser.role === 'member') {
+      return ['viewer']
     }
     
     // 其他角色不能创建/编辑用户
