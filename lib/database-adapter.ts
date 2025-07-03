@@ -1,16 +1,17 @@
 import dbConnect from './db'
 import UserModel from './models/User'
 import { User, UserRole, CreateUserRequest, UpdateUserRequest } from '@/types/auth'
+import { serializeUser, SerializedUser } from '@/lib/serialization'
 import bcrypt from 'bcryptjs'
 
 /**
  * 数据库适配器接口 - SOLID原则: 依赖倒置
  */
 export interface DatabaseAdapter {
-  getUser(id: string): Promise<User | null>
-  getUserByEmail(email: string): Promise<User | null>
-  createUser(userData: CreateUserRequest): Promise<User>
-  updateUser(id: string, updates: UpdateUserRequest): Promise<User>
+  getUser(id: string): Promise<SerializedUser | null>
+  getUserByEmail(email: string): Promise<SerializedUser | null>
+  createUser(userData: CreateUserRequest): Promise<SerializedUser>
+  updateUser(id: string, updates: UpdateUserRequest): Promise<SerializedUser>
   deleteUser(id: string): Promise<void>
   ensureUserTable(): Promise<void>
 }
@@ -31,29 +32,29 @@ export class MongoDBAdapter implements DatabaseAdapter {
     }
   }
 
-  async getUser(id: string): Promise<User | null> {
+  async getUser(id: string): Promise<SerializedUser | null> {
     try {
       await this.ensureUserTable()
       const user = await UserModel.findById(id).select('-password')
-      return user ? user.toJSON() : null
+      return user ? serializeUser(user) : null
     } catch (error) {
       console.error('Error getting user:', error)
       return null
     }
   }
 
-  async getUserByEmail(email: string): Promise<User | null> {
+  async getUserByEmail(email: string): Promise<SerializedUser | null> {
     try {
       await this.ensureUserTable()
       const user = await UserModel.findOne({ email }).select('-password')
-      return user ? user.toJSON() : null
+      return user ? serializeUser(user) : null
     } catch (error) {
       console.error('Error getting user by email:', error)
       return null
     }
   }
 
-  async createUser(userData: CreateUserRequest): Promise<User> {
+  async createUser(userData: CreateUserRequest): Promise<SerializedUser> {
     try {
       await this.ensureUserTable()
 
@@ -63,14 +64,14 @@ export class MongoDBAdapter implements DatabaseAdapter {
         password: hashedPassword
       })
 
-      return user.toJSON()
+      return serializeUser(user)
     } catch (error) {
       console.error('Error creating user:', error)
       throw error
     }
   }
 
-  async updateUser(id: string, updates: UpdateUserRequest): Promise<User> {
+  async updateUser(id: string, updates: UpdateUserRequest): Promise<SerializedUser> {
     try {
       await this.ensureUserTable()
 
@@ -83,7 +84,7 @@ export class MongoDBAdapter implements DatabaseAdapter {
         throw new Error('User not found')
       }
 
-      return user.toJSON()
+      return serializeUser(user)
     } catch (error) {
       console.error('Error updating user:', error)
       throw error

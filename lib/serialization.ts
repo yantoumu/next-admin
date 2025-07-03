@@ -10,18 +10,18 @@
  * - DRY：统一的序列化工具
  */
 
-import { User } from '@/types/auth'
+import { User, UserRole } from '@/types/auth'
 import { Document } from 'mongoose'
 
 /**
  * 序列化安全的用户对象类型
- * 确保所有字段都是JSON安全的
+ * 确保所有字段都是JSON安全的，同时保持类型兼容性
  */
 export interface SerializedUser {
   id: string
   email: string
   name: string | null
-  role: string
+  role: UserRole  // 保持UserRole类型，确保类型兼容性
   created_at: string  // 注意：这里是string，不是Date
   updated_at: string  // 注意：这里是string，不是Date
 }
@@ -57,12 +57,12 @@ export function serializeUser(user: any): SerializedUser | null {
     id: String(plainUser.id || plainUser._id),
     email: String(plainUser.email),
     name: plainUser.name ? String(plainUser.name) : null,
-    role: String(plainUser.role),
-    created_at: plainUser.created_at instanceof Date 
-      ? plainUser.created_at.toISOString() 
+    role: plainUser.role as UserRole, // 保持UserRole类型
+    created_at: plainUser.created_at instanceof Date
+      ? plainUser.created_at.toISOString()
       : String(plainUser.created_at),
-    updated_at: plainUser.updated_at instanceof Date 
-      ? plainUser.updated_at.toISOString() 
+    updated_at: plainUser.updated_at instanceof Date
+      ? plainUser.updated_at.toISOString()
       : String(plainUser.updated_at)
   }
   

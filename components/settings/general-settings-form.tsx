@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { User, SerializedUser } from '@/types/auth'
+import { User } from '@/types/auth'
+import { SerializedUser } from '@/lib/serialization'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'

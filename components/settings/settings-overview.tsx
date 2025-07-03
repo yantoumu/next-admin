@@ -1,7 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { User, SerializedUser } from '@/types/auth'
+import { User } from '@/types/auth'
+import { SerializedUser } from '@/lib/serialization'
 import { hasPermission } from '@/lib/permissions'
 import { PAGE_ROUTES } from '@/lib/constants'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'

@@ -95,6 +95,7 @@ function generateTabTitle(path: string): string {
 export function TabsProvider({ children }: { children: React.ReactNode }) {
   const [tabs, setTabs] = useState<Tab[]>([])
   const [activeTabId, setActiveTabId] = useState<string>('')
+  const [pendingNavigation, setPendingNavigation] = useState<string | null>(null)
   const pathname = usePathname()
   const router = useRouter()
 
@@ -119,7 +120,7 @@ export function TabsProvider({ children }: { children: React.ReactNode }) {
     })
   }, [])
 
-  // 缓存移除标签页函数
+  // 缓存移除标签页函数 - 分离状态更新和路由导航
   const removeTab = useCallback((tabId: string) => {
     setTabs(prev => {
       const newTabs = prev.filter(tab => tab.id !== tabId)
@@ -128,12 +129,13 @@ export function TabsProvider({ children }: { children: React.ReactNode }) {
       if (tabId === activeTabId && newTabs.length > 0) {
         const lastTab = newTabs[newTabs.length - 1]
         setActiveTabId(lastTab.id)
-        router.push(lastTab.path)
+        // 设置待导航路径，在useEffect中处理
+        setPendingNavigation(lastTab.path)
       }
 
       return newTabs
     })
-  }, [activeTabId, router])
+  }, [activeTabId])
 
   // 缓存设置活跃标签函数
   const setActiveTab = useCallback((tabId: string) => {
@@ -148,6 +150,19 @@ export function TabsProvider({ children }: { children: React.ReactNode }) {
   const getTabByPath = useCallback((path: string): Tab | undefined => {
     return tabs.find(tab => tab.path === path)
   }, [tabs])
+
+  // 处理异步路由导航，避免渲染期间状态更新冲突
+  useEffect(() => {
+    if (pendingNavigation) {
+      // 使用setTimeout确保在下一个事件循环中执行
+      const timeoutId = setTimeout(() => {
+        router.push(pendingNavigation)
+        setPendingNavigation(null)
+      }, 0)
+
+      return () => clearTimeout(timeoutId)
+    }
+  }, [pendingNavigation, router])
 
   // 缓存标签数据生成，避免重复计算
   const tabData = useMemo(() => {
