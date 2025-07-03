@@ -37,25 +37,44 @@
   }
 
   .dark {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 240 10% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 240 5.9% 10%;
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
+    /* 主背景 - 柔和的深灰色，参考GitHub Dark */
+    --background: 220 13% 9%;
+    --foreground: 220 9% 89%;
+
+    /* 卡片和容器 - 比背景稍亮，建立层次感 */
+    --card: 220 13% 11%;
+    --card-foreground: 220 9% 89%;
+
+    /* 弹出层 - 更明显的层次 */
+    --popover: 220 13% 13%;
+    --popover-foreground: 220 9% 89%;
+
+    /* 主要按钮 - 蓝色调，保持品牌色 */
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 98%;
+
+    /* 次要元素 - 中等灰度 */
+    --secondary: 220 13% 15%;
+    --secondary-foreground: 220 9% 89%;
+
+    /* 静音元素 - 更柔和的背景 */
+    --muted: 220 13% 15%;
+    --muted-foreground: 220 9% 65%;
+
+    /* 强调色 - 悬停和选中状态 */
+    --accent: 220 13% 18%;
+    --accent-foreground: 220 9% 89%;
+
+    /* 危险操作 - 柔和的红色 */
+    --destructive: 0 63% 31%;
     --destructive-foreground: 0 0% 98%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 240 4.9% 83.9%;
+
+    /* 边框和输入框 - 微妙的分隔线 */
+    --border: 220 13% 18%;
+    --input: 220 13% 15%;
+
+    /* 焦点环 - 蓝色调 */
+    --ring: 217 91% 60%;
   }
 }
 
