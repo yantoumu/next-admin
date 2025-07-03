@@ -41,7 +41,7 @@ const HeaderComponent = function Header({ user, isSidebarCollapsed, onToggleSide
   }, [router])
 
   return (
-    <header className="bg-background border-b border-border">
+    <header className="bg-background border-b border-border backdrop-blur-sm bg-opacity-95 sticky top-0 z-40">
       {/* 顶部工具栏 */}
       <div className="flex items-center justify-between px-6 py-4">
         <div className="flex items-center flex-1 min-w-0">
