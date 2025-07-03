@@ -1,14 +1,21 @@
-export default function Home() {
-  return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-24">
-      <div className="z-10 max-w-5xl w-full items-center justify-center font-mono text-sm">
-        <h1 className="text-4xl font-bold text-center mb-8">
-          通用后台管理系统
-        </h1>
-        <p className="text-center text-muted-foreground">
-          基于 Next.js 15 + Tailwind CSS 4 + shadcn/ui
-        </p>
-      </div>
-    </main>
-  )
+import { redirect } from 'next/navigation'
+import { getCurrentUserServer } from '@/lib/auth'
+
+/**
+ * 主页 - 智能重定向
+ * 已登录用户：重定向到Dashboard
+ * 未登录用户：重定向到登录页面
+ * 这是一个管理系统，不需要公开的首页
+ */
+export default async function Home() {
+  // 检查用户是否已登录
+  const user = await getCurrentUserServer()
+
+  if (user) {
+    // 已登录，重定向到Dashboard
+    redirect('/dashboard')
+  } else {
+    // 未登录，重定向到登录页面
+    redirect('/login')
+  }
 }
