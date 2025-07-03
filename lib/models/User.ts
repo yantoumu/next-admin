@@ -1,12 +1,5 @@
 import mongoose, { Schema, Document, Model } from 'mongoose'
-
-// 用户角色枚举
-export enum UserRole {
-  SUPER_ADMIN = 'super_admin',
-  ADMIN = 'admin', 
-  MEMBER = 'member',
-  VIEWER = 'viewer'
-}
+import { UserRole } from '@/types/auth'
 
 // 用户接口定义
 export interface IUser extends Document {
@@ -42,8 +35,8 @@ const UserSchema: Schema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: Object.values(UserRole),
-      default: UserRole.MEMBER,
+      enum: ['super_admin', 'admin', 'member', 'viewer'],
+      default: 'member',
       required: true
     }
   },

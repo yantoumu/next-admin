@@ -64,7 +64,11 @@ export class MongoDBAdapter implements DatabaseAdapter {
         password: hashedPassword
       })
 
-      return serializeUser(user)
+      const serializedUser = serializeUser(user)
+      if (!serializedUser) {
+        throw new Error('Failed to serialize user')
+      }
+      return serializedUser
     } catch (error) {
       console.error('Error creating user:', error)
       throw error
@@ -84,7 +88,11 @@ export class MongoDBAdapter implements DatabaseAdapter {
         throw new Error('User not found')
       }
 
-      return serializeUser(user)
+      const serializedUser = serializeUser(user)
+      if (!serializedUser) {
+        throw new Error('Failed to serialize user')
+      }
+      return serializedUser
     } catch (error) {
       console.error('Error updating user:', error)
       throw error

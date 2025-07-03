@@ -8,7 +8,7 @@
 import { program } from 'commander';
 import dbConnect from '../lib/db';
 import User from '../lib/models/User';
-import { UserRole } from '../lib/models/User';
+import { UserRole } from '../types/auth';
 import bcrypt from 'bcryptjs';
 
 // 颜色输出
@@ -50,7 +50,7 @@ async function createAdmin(email: string, password: string, name?: string) {
       email,
       password: hashedPassword,
       name: name || '管理员',
-      role: UserRole.SUPER_ADMIN,
+      role: 'super_admin',
     });
     
     log.success(`管理员用户创建成功:`);
@@ -150,7 +150,7 @@ async function checkDatabase() {
     
     const userCount = await User.countDocuments();
     const adminCount = await User.countDocuments({ 
-      role: { $in: [UserRole.SUPER_ADMIN, UserRole.ADMIN] } 
+      role: { $in: ['super_admin', 'admin'] }
     });
     
     log.title('数据库状态:');

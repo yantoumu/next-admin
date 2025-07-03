@@ -1,5 +1,6 @@
 import dbConnect from '../lib/db'
-import User, { UserRole } from '../lib/models/User'
+import User from '../lib/models/User'
+import { UserRole } from '../types/auth'
 
 async function verifyUsers() {
   try {
@@ -16,30 +17,30 @@ async function verifyUsers() {
     
     // 按角色统计
     const roleStats = {
-      [UserRole.SUPER_ADMIN]: 0,
-      [UserRole.ADMIN]: 0, 
-      [UserRole.MEMBER]: 0,
-      [UserRole.VIEWER]: 0
+      'super_admin': 0,
+      'admin': 0,
+      'member': 0,
+      'viewer': 0
     }
-    
+
     users.forEach(user => {
       roleStats[user.role as UserRole]++
     })
-    
-    console.log(`   super_admin: ${roleStats[UserRole.SUPER_ADMIN]}`)
-    console.log(`   admin: ${roleStats[UserRole.ADMIN]}`)
-    console.log(`   member: ${roleStats[UserRole.MEMBER]}`)
-    console.log(`   viewer: ${roleStats[UserRole.VIEWER]}`)
+
+    console.log(`   super_admin: ${roleStats['super_admin']}`)
+    console.log(`   admin: ${roleStats['admin']}`)
+    console.log(`   member: ${roleStats['member']}`)
+    console.log(`   viewer: ${roleStats['viewer']}`)
 
     console.log(`\n👥 用户列表:`)
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
     
     users.forEach((user, index) => {
       const roleEmoji = {
-        [UserRole.SUPER_ADMIN]: '👑',
-        [UserRole.ADMIN]: '🛡️',
-        [UserRole.MEMBER]: '👤',
-        [UserRole.VIEWER]: '👁️'
+        'super_admin': '👑',
+        'admin': '🛡️',
+        'member': '👤',
+        'viewer': '👁️'
       }
       
       console.log(`${index + 1}. ${roleEmoji[user.role as UserRole]} ${user.name || '未设置姓名'}`)

@@ -1,5 +1,6 @@
 import dbConnect from '../lib/db'
-import User, { UserRole } from '../lib/models/User'
+import User from '../lib/models/User'
+import { UserRole } from '../types/auth'
 import bcrypt from 'bcryptjs'
 
 /**
@@ -31,25 +32,25 @@ async function seedDatabase() {
         email: 'admin@example.com',
         password: await createPassword('admin123456'),
         name: '超级管理员',
-        role: UserRole.SUPER_ADMIN,
+        role: 'super_admin',
       },
       {
         email: 'manager@example.com',
         password: await createPassword('manager123456'),
         name: '系统管理员',
-        role: UserRole.ADMIN,
+        role: 'admin',
       },
       {
         email: 'member@example.com',
         password: await createPassword('member123456'),
         name: '普通成员',
-        role: UserRole.MEMBER,
+        role: 'member',
       },
       {
         email: 'viewer@example.com',
         password: await createPassword('viewer123456'),
         name: '查看者',
-        role: UserRole.VIEWER,
+        role: 'viewer',
       }
     ]
 
