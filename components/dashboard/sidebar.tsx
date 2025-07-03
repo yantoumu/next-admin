@@ -94,14 +94,14 @@ export function Sidebar({ user, isCollapsed = false, onToggleCollapse }: Sidebar
       <div className="p-6 border-b border-gray-200 flex items-center justify-between">
         {!isCollapsed && (
           <div>
-            <h2 className="text-xl font-bold text-gray-900">管理后台</h2>
-            <p className="text-sm text-gray-500 mt-1">{user.name}</p>
+            <h2 className="text-xl font-bold text-foreground">管理后台</h2>
+            <p className="text-sm text-muted-foreground mt-1">{user.name}</p>
           </div>
         )}
         {onToggleCollapse && (
           <button
             onClick={onToggleCollapse}
-            className="p-2 rounded-md hover:bg-gray-100 transition-colors"
+            className="p-2 rounded-md hover:bg-accent transition-colors"
             title={isCollapsed ? '展开侧边栏' : '收起侧边栏'}
           >
             {isCollapsed ? <Menu size={20} /> : <X size={20} />}

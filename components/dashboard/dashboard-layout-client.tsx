@@ -20,9 +20,9 @@ export function DashboardLayoutClient({ user, children }: DashboardLayoutClientP
 
   return (
     <TabsProvider>
-      <div className="flex h-screen bg-gray-50">
+      <div className="flex h-screen bg-background">
         {/* 侧边栏 - 动态宽度 */}
-        <div className={`bg-white border-r border-gray-200 flex-shrink-0 transition-all duration-300 ${
+        <div className={`bg-card border-r border-border flex-shrink-0 transition-all duration-300 ${
           isSidebarCollapsed ? 'w-16' : 'w-64'
         }`}>
           <Sidebar

@@ -39,7 +39,7 @@ export function Header({ user, isSidebarCollapsed, onToggleSidebar }: HeaderProp
   }
 
   return (
-    <header className="bg-white border-b border-gray-200">
+    <header className="bg-background border-b border-border">
       {/* 顶部工具栏 */}
       <div className="flex items-center justify-between px-6 py-4">
         <div className="flex items-center flex-1 min-w-0">
@@ -47,7 +47,7 @@ export function Header({ user, isSidebarCollapsed, onToggleSidebar }: HeaderProp
           {onToggleSidebar && (
             <button
               onClick={onToggleSidebar}
-              className="p-2 rounded-md hover:bg-gray-100 transition-colors mr-4 flex-shrink-0"
+              className="p-2 rounded-md hover:bg-accent transition-colors mr-4 flex-shrink-0"
               title={isSidebarCollapsed ? '展开侧边栏' : '收起侧边栏'}
             >
               <Menu size={20} />
@@ -68,7 +68,7 @@ export function Header({ user, isSidebarCollapsed, onToggleSidebar }: HeaderProp
           <ThemeToggleButton />
 
           {/* 通知 */}
-          <button className="p-2 text-gray-400 hover:text-gray-600">
+          <button className="p-2 text-muted-foreground hover:text-foreground">
             <span className="sr-only">通知</span>
             🔔
           </button>
@@ -76,14 +76,14 @@ export function Header({ user, isSidebarCollapsed, onToggleSidebar }: HeaderProp
           {/* 用户菜单 */}
           <div className="relative">
             <button
-              className="flex items-center space-x-2 text-sm text-gray-700 hover:text-gray-900"
+              className="flex items-center space-x-2 text-sm text-foreground hover:text-foreground/80"
               onClick={handleLogout}
             >
               <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-medium">
                 {user.name?.[0]?.toUpperCase() || 'U'}
               </div>
               <span className="hidden md:block">{user.name}</span>
-              <span className="text-xs text-gray-500">退出</span>
+              <span className="text-xs text-muted-foreground">退出</span>
             </button>
           </div>
         </div>
