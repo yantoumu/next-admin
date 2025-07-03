@@ -1,23 +1,32 @@
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
-import { supabase, createServerClient } from './supabase'
 import { User, UserRole } from '@/types/auth'
 import { PAGE_ROUTES } from './constants'
-import { databaseAdapter } from './database-adapter'
+import dbConnect from './db'
+import UserModel from './models/User'
+import bcrypt from 'bcryptjs'
+import jwt from 'jsonwebtoken'
+
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'
 
 /**
  * 获取当前用户信息 (客户端)
  */
 export async function getCurrentUser(): Promise<User | null> {
   try {
-    const { data: { user }, error } = await supabase.auth.getUser()
-    
-    if (error || !user) {
+    const cookieStore = await cookies()
+    const token = cookieStore.get('auth-token')?.value
+
+    if (!token) {
       return null
     }
 
-    // 使用数据库适配器获取完整用户信息
-    return await databaseAdapter.getUser(user.id)
+    const decoded = jwt.verify(token, JWT_SECRET) as any
+
+    await dbConnect()
+    const user = await UserModel.findById(decoded.userId).select('-password')
+
+    return user ? user.toJSON() : null
   } catch (error) {
     console.error('Error getting current user:', error)
     return null
@@ -35,11 +44,7 @@ export async function getCurrentUserServer(isStatic = false): Promise<User | nul
       return null
     }
 
-    // 动态导入以支持树摇
-    const { AuthProviderFactory } = await import('./auth-context')
-    const authProvider = AuthProviderFactory.create(false)
-    
-    return await authProvider.getUser()
+    return await getCurrentUser()
   } catch (error) {
     console.error('Error getting current user (server):', error)
     return null
@@ -51,16 +56,37 @@ export async function getCurrentUserServer(isStatic = false): Promise<User | nul
  */
 export async function loginUser(email: string, password: string) {
   try {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    })
+    await dbConnect()
 
-    if (error) {
-      throw error
+    // 查找用户
+    const user = await UserModel.findOne({ email }).select('+password')
+    if (!user) {
+      throw new Error('用户不存在')
     }
 
-    return data
+    // 验证密码
+    const isValidPassword = await bcrypt.compare(password, user.password!)
+    if (!isValidPassword) {
+      throw new Error('密码错误')
+    }
+
+    // 生成JWT token
+    const token = jwt.sign(
+      { userId: user._id, email: user.email, role: user.role },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    )
+
+    // 设置cookie
+    const cookieStore = await cookies()
+    cookieStore.set('auth-token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 // 7 days
+    })
+
+    return { user: user.toJSON(), token }
   } catch (error) {
     console.error('Login error:', error)
     throw error
@@ -72,25 +98,26 @@ export async function loginUser(email: string, password: string) {
  */
 export async function registerUser(email: string, password: string, name: string, role: UserRole = 'member') {
   try {
-    // 创建认证用户
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email,
-      password
-    })
+    await dbConnect()
 
-    if (authError || !authData.user) {
-      throw authError
+    // 检查用户是否已存在
+    const existingUser = await UserModel.findOne({ email })
+    if (existingUser) {
+      throw new Error('用户已存在')
     }
 
-    // 使用数据库适配器创建用户记录
-    const userData = await databaseAdapter.createUser({
+    // 加密密码
+    const hashedPassword = await bcrypt.hash(password, 12)
+
+    // 创建用户
+    const user = await UserModel.create({
       email,
+      password: hashedPassword,
       name,
-      password, // 注意: 实际中应该加密
       role
     })
 
-    return userData
+    return user.toJSON()
   } catch (error) {
     console.error('Registration error:', error)
     throw error
@@ -102,11 +129,8 @@ export async function registerUser(email: string, password: string, name: string
  */
 export async function logoutUser() {
   try {
-    const { error } = await supabase.auth.signOut()
-    
-    if (error) {
-      throw error
-    }
+    const cookieStore = await cookies()
+    cookieStore.delete('auth-token')
   } catch (error) {
     console.error('Logout error:', error)
     throw error
@@ -114,17 +138,21 @@ export async function logoutUser() {
 }
 
 /**
- * 重置密码
+ * 重置密码 (简化版本，实际项目中需要邮件服务)
  */
-export async function resetPassword(email: string) {
+export async function resetPassword(email: string, newPassword: string) {
   try {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`
-    })
+    await dbConnect()
 
-    if (error) {
-      throw error
+    const user = await UserModel.findOne({ email })
+    if (!user) {
+      throw new Error('用户不存在')
     }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 12)
+    await UserModel.findByIdAndUpdate(user._id, { password: hashedPassword })
+
+    return { success: true }
   } catch (error) {
     console.error('Reset password error:', error)
     throw error
@@ -132,83 +160,15 @@ export async function resetPassword(email: string) {
 }
 
 /**
- * OAuth登录 - Google, GitHub, Twitter
+ * 验证JWT token
  */
-export async function loginWithOAuth(provider: 'google' | 'github' | 'twitter') {
+export async function verifyToken(token: string) {
   try {
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider,
-      options: {
-        redirectTo: `${window.location.origin}/dashboard`
-      }
-    })
-
-    if (error) {
-      throw error
-    }
-
-    return data
+    const decoded = jwt.verify(token, JWT_SECRET) as any
+    return decoded
   } catch (error) {
-    console.error(`OAuth ${provider} login error:`, error)
-    throw error
-  }
-}
-
-/**
- * 魔术链接登录
- */
-export async function loginWithMagicLink(email: string) {
-  try {
-    const { data, error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: `${window.location.origin}/dashboard`
-      }
-    })
-
-    if (error) {
-      throw error
-    }
-
-    return data
-  } catch (error) {
-    console.error('Magic link login error:', error)
-    throw error
-  }
-}
-
-/**
- * 获取会话信息 (JWT模式)
- */
-export async function getJWTSession() {
-  try {
-    const { data: { session }, error } = await supabase.auth.getSession()
-    
-    if (error) {
-      throw error
-    }
-
-    return session
-  } catch (error) {
-    console.error('Get JWT session error:', error)
+    console.error('Token verification error:', error)
     return null
   }
 }
 
-/**
- * 刷新会话令牌
- */
-export async function refreshSession() {
-  try {
-    const { data, error } = await supabase.auth.refreshSession()
-    
-    if (error) {
-      throw error
-    }
-
-    return data.session
-  } catch (error) {
-    console.error('Refresh session error:', error)
-    throw error
-  }
-}

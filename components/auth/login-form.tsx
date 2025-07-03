@@ -18,8 +18,8 @@ interface FormErrors {
 
 export function LoginForm() {
   const router = useRouter()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const [email, setEmail] = useState('admin@example.com')
+  const [password, setPassword] = useState('admin123456')
   const [remember, setRemember] = useState(false)
   const [errors, setErrors] = useState<FormErrors>({})
   const [isLoading, setIsLoading] = useState(false)
@@ -53,17 +53,18 @@ export function LoginForm() {
     setErrors({})
     
     try {
-      // TODO: 实现登录API调用
-      console.log('Login attempt:', { email, password: '***' })
-      // const response = await fetch('/api/auth/login', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ email, password, remember })
-      // })
-      // if (!response.ok) throw new Error('Login failed')
-      
-      // 模拟API调用
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, remember })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Login failed')
+      }
+
       router.push(PAGE_ROUTES.DASHBOARD)
     } catch (error: any) {
       console.error('Login error:', error)
@@ -222,7 +223,7 @@ export function LoginForm() {
           </Button>
         </form>
 
-        {/* 分隔线 */}
+        {/* 注释掉未实现的登录方式
         <div className="relative">
           <div className="absolute inset-0 flex items-center">
             <span className="w-full border-t" />
@@ -234,7 +235,6 @@ export function LoginForm() {
           </div>
         </div>
 
-        {/* OAuth 登录按钮 */}
         <div className="grid grid-cols-2 gap-3">
           <Button
             variant="outline"
@@ -250,7 +250,7 @@ export function LoginForm() {
             </svg>
             Google
           </Button>
-          
+
           <Button
             variant="outline"
             onClick={() => handleOAuthLogin('github')}
@@ -262,7 +262,6 @@ export function LoginForm() {
           </Button>
         </div>
 
-        {/* 魔术链接登录 */}
         <Button
           variant="ghost"
           onClick={handleMagicLink}
@@ -272,6 +271,7 @@ export function LoginForm() {
           <Mail className="h-4 w-4 mr-2" />
           使用邮箱登录链接
         </Button>
+        */}
       </CardContent>
     </Card>
   )

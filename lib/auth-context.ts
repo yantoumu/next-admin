@@ -29,24 +29,22 @@ export class DynamicAuthProvider {
       // 只在运行时调用cookies
       const { cookies } = await import('next/headers')
       const cookieStore = await cookies()
-      const accessToken = cookieStore.get('sb-access-token')?.value
+      const accessToken = cookieStore.get('auth-token')?.value
       
       if (!accessToken) {
         return null
       }
 
-      // 实际认证逻辑
-      const { createServerClient } = await import('./supabase')
+      // 实际认证逻辑 - 使用JWT验证
+      const { verifyToken } = await import('./auth')
       const { databaseAdapter } = await import('./database-adapter')
-      
-      const serverClient = createServerClient()
-      const { data: { user }, error } = await serverClient.auth.getUser(accessToken)
-      
-      if (error || !user) {
+
+      const decoded = await verifyToken(accessToken)
+      if (!decoded) {
         return null
       }
 
-      return await databaseAdapter.getUser(user.id)
+      return await databaseAdapter.getUser(decoded.userId)
     } catch (error) {
       console.error('Auth error:', error)
       return null

@@ -1,22 +1,12 @@
 import dbConnect from '../lib/db'
 import User, { UserRole } from '../lib/models/User'
-import * as crypto from 'crypto'
+import bcrypt from 'bcryptjs'
 
 /**
- * 生成密码哈希
+ * 创建用户的完整密码（使用bcrypt）
  */
-function generatePasswordHash(password: string): { hash: string; salt: string } {
-  const salt = crypto.randomBytes(32).toString('hex')
-  const hash = crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex')
-  return { hash, salt }
-}
-
-/**
- * 创建用户的完整密码（包含salt）
- */
-function createPassword(password: string): string {
-  const { hash, salt } = generatePasswordHash(password)
-  return `${hash}:${salt}`
+async function createPassword(password: string): Promise<string> {
+  return await bcrypt.hash(password, 12)
 }
 
 async function seedDatabase() {
@@ -39,32 +29,32 @@ async function seedDatabase() {
     const usersData = [
       {
         email: 'admin@example.com',
-        password: createPassword('admin123456'),
+        password: await createPassword('admin123456'),
         name: '超级管理员',
         role: UserRole.SUPER_ADMIN,
       },
       {
         email: 'manager@example.com',
-        password: createPassword('manager123456'),
+        password: await createPassword('manager123456'),
         name: '系统管理员',
         role: UserRole.ADMIN,
       },
       {
         email: 'member@example.com',
-        password: createPassword('member123456'),
+        password: await createPassword('member123456'),
         name: '普通成员',
         role: UserRole.MEMBER,
       },
       {
         email: 'viewer@example.com',
-        password: createPassword('viewer123456'),
+        password: await createPassword('viewer123456'),
         name: '查看者',
         role: UserRole.VIEWER,
       }
     ]
 
     console.log('📝 正在创建用户...')
-    
+
     // 批量插入用户数据
     const createdUsers = await User.insertMany(usersData, { ordered: false })
     

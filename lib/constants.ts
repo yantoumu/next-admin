@@ -31,7 +31,7 @@ export const API_ROUTES = {
 export const PAGE_ROUTES = {
   HOME: '/',
   LOGIN: '/login',
-  REGISTER: '/register',
+  // REGISTER: '/register', // 注释掉公开注册路由，现在只有管理员可以创建用户
   DASHBOARD: '/dashboard',
   USERS: '/dashboard/users',
   SETTINGS: '/dashboard/settings',

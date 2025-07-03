@@ -1,7 +1,6 @@
 'use client'
 
 import { User } from '@/types/auth'
-import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import { PAGE_ROUTES } from '@/lib/constants'
 import { ThemeToggleButton } from '@/components/theme/theme-toggle'
@@ -15,8 +14,13 @@ export function Header({ user }: HeaderProps) {
 
   const handleLogout = async () => {
     try {
-      await supabase.auth.signOut()
-      router.push('/')
+      const response = await fetch('/api/auth/logout', {
+        method: 'POST'
+      })
+
+      if (response.ok) {
+        router.push('/')
+      }
     } catch (error) {
       console.error('Logout error:', error)
     }
