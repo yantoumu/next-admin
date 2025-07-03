@@ -4,12 +4,16 @@ import { User } from '@/types/auth'
 import { useRouter } from 'next/navigation'
 import { PAGE_ROUTES } from '@/lib/constants'
 import { ThemeToggleButton } from '@/components/theme/theme-toggle'
+import { SerializedUser } from '@/lib/serialization'
+import { Menu } from 'lucide-react'
 
 interface HeaderProps {
-  user: User
+  user: SerializedUser
+  isSidebarCollapsed?: boolean
+  onToggleSidebar?: () => void
 }
 
-export function Header({ user }: HeaderProps) {
+export function Header({ user, isSidebarCollapsed, onToggleSidebar }: HeaderProps) {
   const router = useRouter()
 
   const handleLogout = async () => {
@@ -30,6 +34,17 @@ export function Header({ user }: HeaderProps) {
     <header className="bg-white border-b border-gray-200 px-6 py-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center">
+          {/* 侧边栏切换按钮 */}
+          {onToggleSidebar && (
+            <button
+              onClick={onToggleSidebar}
+              className="p-2 rounded-md hover:bg-gray-100 transition-colors mr-4"
+              title={isSidebarCollapsed ? '展开侧边栏' : '收起侧边栏'}
+            >
+              <Menu size={20} />
+            </button>
+          )}
+
           <h1 className="text-lg font-semibold text-gray-900">
             仪表板
           </h1>

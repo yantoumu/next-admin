@@ -2,9 +2,11 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useState } from 'react'
 import { hasPermission } from '@/lib/permissions'
 import { User } from '@/types/auth'
 import { PAGE_ROUTES } from '@/lib/constants'
+import { ChevronDown, ChevronRight, Menu, X } from 'lucide-react'
 
 interface MenuItem {
   name: string
@@ -50,10 +52,29 @@ const menuItems: MenuItem[] = [
 
 interface SidebarProps {
   user: User
+  isCollapsed?: boolean
+  onToggleCollapse?: () => void
 }
 
-export function Sidebar({ user }: SidebarProps) {
+export function Sidebar({ user, isCollapsed = false, onToggleCollapse }: SidebarProps) {
   const pathname = usePathname()
+  const [expandedItems, setExpandedItems] = useState<string[]>([])
+
+  // 切换子菜单展开状态
+  const toggleExpanded = (href: string) => {
+    setExpandedItems(prev =>
+      prev.includes(href)
+        ? prev.filter(item => item !== href)
+        : [...prev, href]
+    )
+  }
+
+  // 检查是否应该展开（当前路径在子菜单中时自动展开）
+  const shouldExpand = (item: MenuItem) => {
+    if (!item.children) return false
+    return expandedItems.includes(item.href) ||
+           item.children.some(child => pathname.startsWith(child.href))
+  }
   
   const filteredMenuItems = menuItems.filter(item => {
     if (item.permission && !hasPermission(user.role, item.permission as any)) {
@@ -68,32 +89,79 @@ export function Sidebar({ user }: SidebarProps) {
   })
 
   return (
-    <div className="flex flex-col h-full">
+    <div className={`flex flex-col h-full transition-all duration-300 ${isCollapsed ? 'w-16' : 'w-64'}`}>
       {/* Logo区域 */}
-      <div className="p-6 border-b border-gray-200">
-        <h2 className="text-xl font-bold text-gray-900">管理后台</h2>
-        <p className="text-sm text-gray-500 mt-1">{user.name}</p>
+      <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+        {!isCollapsed && (
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">管理后台</h2>
+            <p className="text-sm text-gray-500 mt-1">{user.name}</p>
+          </div>
+        )}
+        {onToggleCollapse && (
+          <button
+            onClick={onToggleCollapse}
+            className="p-2 rounded-md hover:bg-gray-100 transition-colors"
+            title={isCollapsed ? '展开侧边栏' : '收起侧边栏'}
+          >
+            {isCollapsed ? <Menu size={20} /> : <X size={20} />}
+          </button>
+        )}
       </div>
       
       {/* 菜单区域 */}
-      <nav className="flex-1 p-4 space-y-2">
+      <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
         {filteredMenuItems.map((item) => (
           <div key={item.href}>
-            <Link
-              href={item.href}
-              className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                pathname === item.href
-                  ? 'bg-blue-100 text-blue-700'
-                  : 'text-gray-700 hover:bg-gray-100'
-              }`}
-            >
-              <span className="mr-3">{item.icon}</span>
-              {item.name}
-            </Link>
-            
+            {/* 主菜单项 */}
+            <div className="flex items-center">
+              {item.children ? (
+                <button
+                  onClick={() => toggleExpanded(item.href)}
+                  className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors flex-1 text-left ${
+                    item.children.some(child => pathname.startsWith(child.href))
+                      ? 'bg-blue-100 text-blue-700'
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                  title={isCollapsed ? item.name : undefined}
+                >
+                  <span className={isCollapsed ? 'mx-auto' : 'mr-3'}>{item.icon}</span>
+                  {!isCollapsed && item.name}
+                </button>
+              ) : (
+                <Link
+                  href={item.href}
+                  className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors flex-1 ${
+                    pathname === item.href
+                      ? 'bg-blue-100 text-blue-700'
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                  title={isCollapsed ? item.name : undefined}
+                >
+                  <span className={isCollapsed ? 'mx-auto' : 'mr-3'}>{item.icon}</span>
+                  {!isCollapsed && item.name}
+                </Link>
+              )}
+
+              {/* 展开/收起按钮 */}
+              {!isCollapsed && item.children && (
+                <button
+                  onClick={() => toggleExpanded(item.href)}
+                  className="p-1 rounded hover:bg-gray-100 transition-colors ml-1"
+                  title={shouldExpand(item) ? '收起' : '展开'}
+                >
+                  {shouldExpand(item) ? (
+                    <ChevronDown size={16} />
+                  ) : (
+                    <ChevronRight size={16} />
+                  )}
+                </button>
+              )}
+            </div>
+
             {/* 子菜单 */}
-            {item.children && (
-              <div className="ml-6 mt-2 space-y-1">
+            {!isCollapsed && item.children && shouldExpand(item) && (
+              <div className="ml-6 mt-2 space-y-1 animate-in slide-in-from-top-2 duration-200">
                 {item.children.map((child) => (
                   <Link
                     key={child.href}
@@ -120,10 +188,12 @@ export function Sidebar({ user }: SidebarProps) {
           <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-medium">
             {user.name?.[0]?.toUpperCase() || 'U'}
           </div>
-          <div className="ml-3 flex-1 min-w-0">
-            <p className="text-sm font-medium text-gray-900 truncate">{user.name}</p>
-            <p className="text-xs text-gray-500 truncate">{user.role}</p>
-          </div>
+          {!isCollapsed && (
+            <div className="ml-3 flex-1 min-w-0">
+              <p className="text-sm font-medium text-gray-900 truncate">{user.name}</p>
+              <p className="text-xs text-gray-500 truncate">{user.role}</p>
+            </div>
+          )}
         </div>
       </div>
     </div>
