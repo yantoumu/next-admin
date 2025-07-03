@@ -57,9 +57,12 @@ const UserSchema: Schema = new mongoose.Schema(
 )
 
 // 创建索引以优化查询性能
-UserSchema.index({ email: 1 })
-UserSchema.index({ role: 1 })
-UserSchema.index({ created_at: -1 })
+// 注意：email字段已通过unique: true自动创建唯一索引，无需重复定义
+UserSchema.index({ role: 1 }, { name: 'idx_user_role' })
+UserSchema.index({ created_at: -1 }, { name: 'idx_user_created_at' })
+
+// 复合索引：按角色和创建时间查询（用于管理界面的筛选和排序）
+UserSchema.index({ role: 1, created_at: -1 }, { name: 'idx_user_role_created' })
 
 // 虚拟字段：不包含密码的用户信息
 UserSchema.virtual('safeUser').get(function() {
