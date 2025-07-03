@@ -8,7 +8,16 @@
     "start": "next start",
     "lint": "next lint",
     "type-check": "tsc --noEmit",
-    "seed": "export $(cat .env.local | xargs) && tsx scripts/mongoose-seed.ts"
+    "seed": "export $(cat .env.local | xargs) && tsx scripts/mongoose-seed.ts",
+    "test:db": "export $(cat .env.local | xargs) && tsx scripts/test-mongo-connection.ts",
+    "setup": "chmod +x scripts/setup.sh && ./scripts/setup.sh",
+    "clean": "rm -rf .next node_modules package-lock.json",
+    "reset": "npm run clean && npm install",
+    "dev-tools": "export $(cat .env.local | xargs) && tsx scripts/dev-tools.ts",
+    "create-admin": "npm run dev-tools create-admin",
+    "list-users": "npm run dev-tools list-users",
+    "check-db": "npm run dev-tools check-db",
+    "health-check": "export $(cat .env.local | xargs) && tsx scripts/health-check.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.0",
@@ -26,6 +35,7 @@
     "bcryptjs": "^3.0.2",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.0.0",
+    "commander": "^14.0.0",
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.300.0",
     "mongoose": "^8.16.1",
