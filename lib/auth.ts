@@ -11,6 +11,47 @@ import { serializeUser, SerializedUser } from './serialization'
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'
 
 /**
+ * 清除无效的认证token
+ */
+async function clearAuthToken(): Promise<void> {
+  try {
+    const cookieStore = cookies()
+    cookieStore.delete('auth-token')
+  } catch (error) {
+    console.error('Error clearing auth token:', error)
+  }
+}
+
+/**
+ * 验证JWT token格式和基本结构
+ */
+function validateJWTFormat(token: string): boolean {
+  if (!token || typeof token !== 'string') {
+    return false
+  }
+
+  // JWT应该有3个部分，用.分隔
+  const parts = token.split('.')
+  if (parts.length !== 3) {
+    return false
+  }
+
+  // 检查每个部分是否为有效的base64
+  try {
+    for (const part of parts) {
+      if (!part || part.length === 0) {
+        return false
+      }
+      // 尝试解码base64（JWT使用base64url编码）
+      Buffer.from(part, 'base64')
+    }
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
  * 获取当前用户信息 (客户端)
  * 返回序列化安全的用户对象
  */
@@ -20,13 +61,54 @@ export async function getCurrentUser(): Promise<SerializedUser | null> {
     const token = cookieStore.get('auth-token')?.value
 
     if (!token) {
+      console.log('No auth token found in cookies')
       return null
     }
 
-    const decoded = jwt.verify(token, JWT_SECRET) as any
+    // 验证token格式
+    if (!validateJWTFormat(token)) {
+      console.error('Invalid JWT format')
+      await clearAuthToken()
+      return null
+    }
+
+    // 验证JWT_SECRET是否存在
+    if (!JWT_SECRET || JWT_SECRET === 'your-secret-key') {
+      console.error('JWT_SECRET is not properly configured')
+      return null
+    }
+
+    let decoded: any
+    try {
+      decoded = jwt.verify(token, JWT_SECRET) as any
+    } catch (jwtError: any) {
+      console.error('JWT verification failed:', {
+        error: jwtError.message,
+        tokenLength: token.length,
+        secretLength: JWT_SECRET.length,
+        tokenStart: token.substring(0, 20) + '...'
+      })
+
+      // 清除无效token
+      await clearAuthToken()
+      return null
+    }
+
+    // 验证decoded payload结构
+    if (!decoded || !decoded.userId) {
+      console.error('Invalid JWT payload: missing userId')
+      await clearAuthToken()
+      return null
+    }
 
     await dbConnect()
     const user = await UserModel.findById(decoded.userId).select('-password')
+
+    if (!user) {
+      console.error('User not found for userId:', decoded.userId)
+      await clearAuthToken()
+      return null
+    }
 
     // 使用序列化函数确保返回的对象是序列化安全的
     return serializeUser(user)
@@ -62,10 +144,26 @@ export async function loginUser(email: string, password: string) {
   try {
     await dbConnect()
 
-    // 查找用户
+    // 查找用户 - 添加调试日志
+    console.log('🔍 查找用户:', { email, modelName: UserModel.modelName })
+
     const user = await UserModel.findOne({ email }).select('+password')
+    console.log('📊 查询结果:', {
+      found: !!user,
+      userEmail: user?.email,
+      hasPassword: !!user?.password
+    })
+
     if (!user) {
-      throw new Error('用户不存在')
+      // 检查数据库中是否有任何用户
+      const totalUsers = await UserModel.countDocuments()
+      console.log('📈 数据库用户总数:', totalUsers)
+
+      if (totalUsers === 0) {
+        throw new Error('数据库中没有用户数据，请先初始化数据')
+      } else {
+        throw new Error('用户不存在')
+      }
     }
 
     // 验证密码
@@ -74,12 +172,32 @@ export async function loginUser(email: string, password: string) {
       throw new Error('密码错误')
     }
 
-    // 生成JWT token
-    const token = jwt.sign(
-      { userId: user._id, email: user.email, role: user.role },
-      JWT_SECRET,
-      { expiresIn: '7d' }
-    )
+    // 验证JWT_SECRET配置
+    if (!JWT_SECRET || JWT_SECRET === 'your-secret-key') {
+      console.error('JWT_SECRET is not properly configured for login')
+      throw new Error('服务器配置错误')
+    }
+
+    // 生成JWT token with enhanced payload
+    const payload = {
+      userId: user._id.toString(),
+      email: user.email,
+      role: user.role,
+      iat: Math.floor(Date.now() / 1000), // issued at
+      jti: `${user._id}_${Date.now()}` // JWT ID for uniqueness
+    }
+
+    const token = jwt.sign(payload, JWT_SECRET, {
+      expiresIn: '7d',
+      algorithm: 'HS256' // 明确指定算法
+    })
+
+    console.log('Generated JWT token for user:', {
+      userId: user._id.toString(),
+      email: user.email,
+      tokenLength: token.length,
+      secretLength: JWT_SECRET.length
+    })
 
     // 设置cookie
     const cookieStore = await cookies()
@@ -87,7 +205,8 @@ export async function loginUser(email: string, password: string) {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60 // 7 days
+      maxAge: 7 * 24 * 60 * 60, // 7 days
+      path: '/' // 确保cookie在整个应用中可用
     })
 
     return { user: user.toJSON(), token }

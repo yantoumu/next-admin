@@ -216,22 +216,69 @@
   }
 }
 
-/* 阴影系统 */
+/* 8点网格系统和间距规范 */
+@layer components {
+  .spacing-xs { @apply p-2; }      /* 8px */
+  .spacing-sm { @apply p-3; }      /* 12px */
+  .spacing-md { @apply p-4; }      /* 16px */
+  .spacing-lg { @apply p-6; }      /* 24px */
+  .spacing-xl { @apply p-8; }      /* 32px */
+  .spacing-2xl { @apply p-12; }    /* 48px */
+
+  .gap-grid-xs { @apply gap-2; }   /* 8px */
+  .gap-grid-sm { @apply gap-3; }   /* 12px */
+  .gap-grid-md { @apply gap-4; }   /* 16px */
+  .gap-grid-lg { @apply gap-6; }   /* 24px */
+  .gap-grid-xl { @apply gap-8; }   /* 32px */
+}
+
+/* 增强阴影系统 */
 @layer components {
   .shadow-soft {
-    box-shadow: 0 2px 8px -2px rgba(0, 0, 0, 0.1), 0 4px 16px -4px rgba(0, 0, 0, 0.1);
+    box-shadow:
+      0 1px 3px 0 rgba(0, 0, 0, 0.1),
+      0 1px 2px 0 rgba(0, 0, 0, 0.06);
   }
 
   .shadow-medium {
-    box-shadow: 0 4px 16px -4px rgba(0, 0, 0, 0.1), 0 8px 32px -8px rgba(0, 0, 0, 0.1);
+    box-shadow:
+      0 4px 6px -1px rgba(0, 0, 0, 0.1),
+      0 2px 4px -1px rgba(0, 0, 0, 0.06);
   }
 
   .shadow-strong {
-    box-shadow: 0 8px 32px -8px rgba(0, 0, 0, 0.15), 0 16px 64px -16px rgba(0, 0, 0, 0.15);
+    box-shadow:
+      0 10px 15px -3px rgba(0, 0, 0, 0.1),
+      0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  }
+
+  .shadow-glow {
+    box-shadow:
+      0 0 0 1px rgba(59, 130, 246, 0.1),
+      0 4px 16px rgba(59, 130, 246, 0.15);
+  }
+
+  /* 暗色模式阴影 */
+  .dark .shadow-soft {
+    box-shadow:
+      0 1px 3px 0 rgba(0, 0, 0, 0.3),
+      0 1px 2px 0 rgba(0, 0, 0, 0.2);
+  }
+
+  .dark .shadow-medium {
+    box-shadow:
+      0 4px 6px -1px rgba(0, 0, 0, 0.3),
+      0 2px 4px -1px rgba(0, 0, 0, 0.2);
+  }
+
+  .dark .shadow-strong {
+    box-shadow:
+      0 10px 15px -3px rgba(0, 0, 0, 0.4),
+      0 4px 6px -2px rgba(0, 0, 0, 0.3);
   }
 }
 
-/* 动画效果 */
+/* 微交互动画系统 */
 @layer components {
   .animate-fade-in {
     animation: fadeIn 0.3s ease-out;
@@ -243,6 +290,72 @@
 
   .animate-scale-in {
     animation: scaleIn 0.2s ease-out;
+  }
+
+  .animate-bounce-in {
+    animation: bounceIn 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  }
+
+  .animate-slide-down {
+    animation: slideDown 0.3s ease-out;
+  }
+
+  .animate-slide-left {
+    animation: slideLeft 0.3s ease-out;
+  }
+
+  .animate-slide-right {
+    animation: slideRight 0.3s ease-out;
+  }
+
+  /* 按钮交互动画 */
+  .btn-press {
+    transition: all 0.1s ease-in-out;
+  }
+
+  .btn-press:active {
+    transform: scale(0.98);
+  }
+
+  /* 卡片悬停效果 */
+  .card-hover {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow:
+      0 10px 25px -5px rgba(0, 0, 0, 0.1),
+      0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  }
+
+  /* 输入框焦点动画 */
+  .input-focus {
+    transition: all 0.2s ease-in-out;
+    position: relative;
+  }
+
+  .input-focus:focus {
+    transform: scale(1.02);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+
+  /* 加载状态动画 */
+  .loading-pulse {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  .loading-spin {
+    animation: spin 1s linear infinite;
+  }
+
+  /* 消息提示动画 */
+  .toast-enter {
+    animation: toastEnter 0.3s ease-out;
+  }
+
+  .toast-exit {
+    animation: toastExit 0.2s ease-in;
   }
 }
 
@@ -262,6 +375,39 @@
   }
 }
 
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideLeft {
+  from {
+    opacity: 0;
+    transform: translateX(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideRight {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
 @keyframes scaleIn {
   from {
     opacity: 0;
@@ -270,5 +416,45 @@
   to {
     opacity: 1;
     transform: scale(1);
+  }
+}
+
+@keyframes bounceIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+  70% {
+    transform: scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes toastEnter {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes toastExit {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(100%);
   }
 }
