@@ -1,6 +1,19 @@
 # 🚀 Next.js Admin Dashboard - 完整项目文档
 
-一个基于 Next.js 15 + MongoDB 的现代化企业级管理后台系统。本文档提供了项目的完整技术说明和开发指南。
+一个基于 Next.js 15 + PostgreSQL 的现代化企业级管理后台系统。本文档提供了项目的完整技术说明和开发指南。
+
+## 🔑 **默认登录账号**
+
+系统已预置以下测试账号，可直接使用：
+
+| 角色 | 邮箱 | 密码 | 权限说明 |
+|------|------|------|----------|
+| **超级管理员** | `admin@example.com` | `admin123456` | 完整系统权限，用户管理 |
+| **系统管理员** | `manager@example.com` | `manager123456` | 系统配置，用户查看 |
+| **普通成员** | `member@example.com` | `member123456` | 基础功能访问 |
+| **访客用户** | `viewer@example.com` | `viewer123456` | 只读权限 |
+
+> **⚠️ 安全提醒：** 生产环境部署前请务必修改默认密码！
 
 ## 📋 目录
 
@@ -20,7 +33,7 @@
 
 ### 系统特性
 
-- 🔐 **企业级安全认证** - JWT + bcrypt + MongoDB，无公开注册漏洞
+- 🔐 **企业级安全认证** - JWT + bcrypt + PostgreSQL，无公开注册漏洞
 - 👥 **完整用户管理** - 基于角色的访问控制（RBAC），支持4级权限
 - 🎨 **现代化UI设计** - Tailwind CSS v3 + shadcn/ui，响应式设计
 - 🌙 **主题系统** - 支持明暗主题切换，用户偏好记忆
@@ -92,10 +105,10 @@
 
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   前端 (React)   │    │  API Routes     │    │  数据库 (MongoDB) │
+│   前端 (React)   │    │  API Routes     │    │ 数据库 (PostgreSQL) │
 │                 │    │                 │    │                 │
-│ • Pages         │◄──►│ • 认证API       │◄──►│ • 用户集合       │
-│ • Components    │    │ • 用户API       │    │ • 设置集合       │
+│ • Pages         │◄──►│ • 认证API       │◄──►│ • 用户表         │
+│ • Components    │    │ • 用户API       │    │ • 设置表         │
 │ • Hooks         │    │ • 设置API       │    │ • 索引优化       │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
          │                       │                       │
@@ -114,7 +127,7 @@
 ```
 用户操作 → 页面组件 → API调用 → 权限验证 → 业务逻辑 → 数据库操作 → 响应返回
    ↓         ↓         ↓         ↓         ↓         ↓         ↓
- UI交互   状态更新   HTTP请求  中间件检查  数据处理  MongoDB   JSON响应
+ UI交互   状态更新   HTTP请求  中间件检查  数据处理  PostgreSQL JSON响应
 ```
 
 ### 安全架构
@@ -154,9 +167,9 @@
 
 | 技术 | 版本 | 作用 | 选择原因 |
 |------|------|------|----------|
-| **MongoDB** | latest | NoSQL数据库 | 灵活schema、水平扩展、JSON原生 |
-| **Mongoose** | ^8.16.1 | ODM对象映射 | 数据验证、中间件、类型安全 |
-| **Prisma** | ^5.7.0 | 数据库工具 | 类型生成、迁移管理、查询构建 |
+| **PostgreSQL** | latest | 关系型数据库 | ACID事务、强一致性、SQL标准 |
+| **Prisma** | ^5.7.0 | ORM对象映射 | 类型安全、迁移管理、查询构建 |
+| **bcryptjs** | ^2.4.3 | 密码哈希 | 安全的密码加密算法 |
 
 ### 认证与安全
 
@@ -583,24 +596,32 @@ enum UserRole {
 }
 ```
 
-### MongoDB集合结构
+### PostgreSQL表结构
 
-```javascript
-// users 集合
-{
-  _id: ObjectId,
-  email: String,        // 唯一索引
-  password: String,     // bcrypt哈希
-  name: String,
-  role: String,         // 枚举值
-  created_at: Date,     // 索引
-  updated_at: Date
-}
+```sql
+-- users 表
+CREATE TABLE users (
+  id TEXT PRIMARY KEY,              -- CUID主键
+  email VARCHAR(255) UNIQUE NOT NULL, -- 邮箱（唯一）
+  password VARCHAR(255) NOT NULL,   -- bcrypt哈希密码
+  name VARCHAR(100),                -- 用户姓名
+  role user_role DEFAULT 'member',  -- 用户角色（枚举）
+  created_at TIMESTAMPTZ DEFAULT NOW(), -- 创建时间
+  updated_at TIMESTAMPTZ DEFAULT NOW()  -- 更新时间
+);
 
-// 索引配置
-db.users.createIndex({ email: 1 }, { unique: true })
-db.users.createIndex({ role: 1 })
-db.users.createIndex({ created_at: -1 })
+-- 用户角色枚举
+CREATE TYPE user_role AS ENUM (
+  'super_admin',
+  'admin',
+  'member',
+  'viewer'
+);
+
+-- 索引配置
+CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX idx_users_role ON users(role);
+CREATE INDEX idx_users_created ON users(created_at);
 ```
 
 ## 🔐 权限系统
@@ -690,8 +711,9 @@ npm install
 cp .env.example .env.local
 # 编辑 .env.local 配置数据库连接
 
-# 4. 初始化数据
-npm run seed
+# 4. 初始化数据库
+npx prisma db push    # 创建数据库表结构
+npx tsx prisma/seed.ts # 创建默认用户数据
 
 # 5. 启动开发服务器
 npm run dev
@@ -716,7 +738,7 @@ npm run dev
 
 ```bash
 # .env.local
-DATABASE_URL="mongodb://username:password@host:port/database?authSource=admin"
+DATABASE_URL="postgres://username:password@host:port/database"
 JWT_SECRET="your-super-secret-jwt-key-change-in-production"
 MULTI_TENANT=false
 NODE_ENV=development
@@ -960,7 +982,7 @@ const menuItems = [
 ### 环境要求
 
 - **Node.js**: >= 18.0.0
-- **MongoDB**: >= 5.0
+- **PostgreSQL**: >= 13.0
 - **内存**: >= 512MB
 - **存储**: >= 1GB
 
@@ -968,7 +990,7 @@ const menuItems = [
 
 ```bash
 # .env.production
-DATABASE_URL="mongodb+srv://username:password@cluster.mongodb.net/database?retryWrites=true&w=majority"
+DATABASE_URL="postgres://username:password@host:port/database?sslmode=require"
 JWT_SECRET="your-super-secure-production-jwt-secret-at-least-32-characters"
 MULTI_TENANT=false
 NODE_ENV=production
@@ -1070,9 +1092,25 @@ pm2 startup
 - [ ] 修改默认管理员密码
 - [ ] 定期更新依赖包
 
+## 📋 更新日志
+
+### v2.0.0 (2025-01-02) - PostgreSQL迁移版本
+- 🚀 **重大更新：完全迁移到PostgreSQL数据库**
+- 🔄 使用Prisma ORM替代Mongoose，提供类型安全的数据访问
+- 🔐 增强的认证系统，支持bcrypt密码哈希
+- 📊 优化的数据库表结构和索引设计
+- ✅ 零TypeScript编译错误，完整的类型安全
+- 🎯 遵循SOLID原则和最佳实践的代码重构
+
+### v1.2.0 (2025-01-02)
+- ✨ 修复登录接口JWT验证Bug
+- 🎨 完整的UI美化升级（字体、色彩、渐变、图标）
+- 🌙 优化暗色主题设计
+- 🔧 增强的错误处理和调试系统
+
 ## 📚 相关文档
 
-- [MongoDB配置指南](doc/README-MONGODB.md)
+- [PostgreSQL迁移指南](docs/POSTGRESQL_MIGRATION.md)
 - [数据种子说明](doc/README-SEED.md)
 - [安全指南](doc/SECURITY.md)
 - [部署指南](doc/DEPLOYMENT.md)
