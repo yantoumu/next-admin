@@ -2,6 +2,8 @@ import { prisma } from '@/lib/db'
 import { DomainInfo, Prisma } from '@prisma/client'
 import { DomainFilterValues } from '@/components/domains/domain-filter'
 import { unstable_cache } from 'next/cache'
+import { calculateDomainGrowth } from '@/lib/utils/domain-growth'
+import { createDomainError, handleDomainError } from '@/lib/errors/domain-errors'
 
 export interface DomainInfoCreateInput {
   domain: string
@@ -49,6 +51,7 @@ export interface DomainQueryOptions {
   filters?: DomainFilterValues
   sortBy?: 'globalRank' | 'monthlyVisits' | 'bounceRate' | 'createdAt'
   sortOrder?: 'asc' | 'desc'
+  sort?: string  // 新增: 支持 Traffic.cv 风格的排序参数
 }
 
 export interface DomainInfoUpdateInput extends Partial<DomainInfoCreateInput> {}
@@ -416,8 +419,42 @@ export const getDomains = unstable_cache(
         search = '',
         filters,
         sortBy = 'globalRank',
-        sortOrder = 'asc'
+        sortOrder = 'asc',
+        sort
       } = options
+
+      // 解析 Traffic.cv 风格的排序参数
+      let finalSortBy = sortBy
+      let finalSortOrder = sortOrder
+      
+      if (sort) {
+        switch (sort) {
+          case 'search-results':
+            // 默认按全球排名
+            finalSortBy = 'globalRank'
+            finalSortOrder = 'asc'
+            break
+          case 'traffic-volume':
+            finalSortBy = 'monthlyVisits'
+            finalSortOrder = 'desc'
+            break
+          case 'growth-volume':
+            // 暂时使用月流量，未来可以添加真实的增长量字段
+            finalSortBy = 'monthlyVisits'
+            finalSortOrder = 'desc'
+            break
+          case 'growth-rate':
+            // 暂时使用跳出率，未来可以添加真实的增长率字段
+            finalSortBy = 'bounceRate'
+            finalSortOrder = 'asc'
+            break
+          case 'registration-date':
+            // 使用真正的注册日期字段
+            finalSortBy = 'registrationDate'
+            finalSortOrder = 'desc'
+            break
+        }
+      }
 
       // 构建查询条件
       const where: Prisma.DomainInfoWhereInput = {}
@@ -473,9 +510,10 @@ export const getDomains = unstable_cache(
       prisma.domainInfo.findMany({
         where,
         orderBy: {
-          [sortBy === 'globalRank' ? 'global_rank' : 
-           sortBy === 'monthlyVisits' ? 'monthly_visits' :
-           sortBy === 'bounceRate' ? 'bounce_rate' : 'created_at']: sortOrder
+          [finalSortBy === 'globalRank' ? 'global_rank' : 
+           finalSortBy === 'monthlyVisits' ? 'monthly_visits' :
+           finalSortBy === 'bounceRate' ? 'bounce_rate' :
+           finalSortBy === 'registrationDate' ? 'registration_date' : 'created_at']: finalSortOrder
         },
         skip: (page - 1) * pageSize,
         take: pageSize,
@@ -496,32 +534,52 @@ export const getDomains = unstable_cache(
           title: true,
           description: true,
           domain_status: true,
-          traffic_period: true
+          traffic_period: true,
+          registration_date: true,
+          top_keywords: true,
+          created_at: true,
+          updated_at: true,
+          monthly_trend: true  // 添加月度趋势数据用于计算增长率
         }
       }),
       prisma.domainInfo.count({ where })
     ])
 
     return {
-      domains: domains.map(d => ({
-        id: d.id.toString(),
-        domain: d.domain,
-        tld: d.tld,
-        globalRank: d.global_rank ? Number(d.global_rank) : null,
-        monthlyVisits: d.monthly_visits ? d.monthly_visits.toString() : null,
-        bounceRate: d.bounce_rate ? Number(d.bounce_rate) : null,
-        category: d.category,
-        categoryName: d.category_name,
-        categoryRank: d.category_rank,
-        isAdult: d.is_adult,
-        isMovie: d.is_movie,
-        isTrending: d.is_trending,
-        countryCode: d.country_code,
-        title: d.title,
-        description: d.description,
-        domainStatus: d.domain_status,
-        trafficPeriod: d.traffic_period
-      })),
+      domains: domains.map(d => {
+        // 计算增长率
+        const growthData = calculateDomainGrowth(
+          d.monthly_trend as Record<string, number> | null,
+          d.monthly_visits
+        )
+        
+        return {
+          id: d.id.toString(),
+          domain: d.domain,
+          tld: d.tld,
+          globalRank: d.global_rank ? Number(d.global_rank) : null,
+          monthlyVisits: d.monthly_visits ? d.monthly_visits.toString() : null,
+          bounceRate: d.bounce_rate ? Number(d.bounce_rate) : null,
+          category: d.category,
+          categoryName: d.category_name,
+          categoryRank: d.category_rank,
+          isAdult: d.is_adult,
+          isMovie: d.is_movie,
+          isTrending: d.is_trending,
+          countryCode: d.country_code,
+          title: d.title,
+          description: d.description,
+          domainStatus: d.domain_status,
+          trafficPeriod: d.traffic_period,
+          registrationDate: d.registration_date,
+          topKeywords: d.top_keywords as any,
+          created_at: d.created_at,
+          updated_at: d.updated_at,
+          // 添加增长数据
+          growthRate: growthData.growthRate,
+          growthVolume: growthData.growthVolume
+        }
+      }),
       totalCount,
       page,
       pageSize,
@@ -529,7 +587,19 @@ export const getDomains = unstable_cache(
     }
     } catch (error) {
       console.error('Failed to fetch domains:', error)
-      throw new Error('获取域名列表失败')
+      
+      // 详细的错误日志
+      if (error instanceof Error) {
+        console.error('Error details:', {
+          message: error.message,
+          stack: error.stack,
+          query: { page, pageSize, search, sort }
+        })
+      }
+      
+      // 使用错误处理器
+      const errorInfo = handleDomainError(error)
+      throw createDomainError('FETCH_FAILED', errorInfo.message)
     }
   },
   ['domains-list'],

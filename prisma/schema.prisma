@@ -71,6 +71,10 @@ model DomainInfo {
   @@index([monthly_visits(sort: Desc)], map: "idx_monthly_visits")
   @@index([registration_date(sort: Desc)], map: "idx_registration_date")
   @@index([top_keywords], map: "idx_top_keywords", type: Gin)
+  @@index([global_rank(sort: Asc)], map: "idx_domain_global_rank")
+  @@index([bounce_rate], map: "idx_domain_bounce_rate")
+  @@index([domain], map: "idx_domain_name")
+  @@index([created_at(sort: Desc)], map: "idx_domain_created_at")
   @@map("domain_info")
 }
 
