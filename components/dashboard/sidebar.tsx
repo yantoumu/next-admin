@@ -90,20 +90,30 @@ const SidebarComponent = function Sidebar({ user, isCollapsed = false, onToggleC
 
   // 缓存过滤后的菜单项，只有当用户角色变化时才重新计算
   const filteredMenuItems = useMemo(() => {
-    return menuItems.filter(item => {
+    return menuItems.map(item => {
+      // 如果item本身需要权限但用户没有，返回null
       if (item.permission && !hasPermission(user.role, item.permission as any)) {
-        return false
+        return null
       }
+      
+      // 如果有子菜单，过滤子菜单
       if (item.children) {
-        // 创建新的children数组，避免修改原始数据
         const filteredChildren = item.children.filter(child =>
           !child.permission || hasPermission(user.role, child.permission as any)
         )
-        // 返回新的item对象，避免副作用
+        
+        // 如果过滤后没有子菜单了，返回没有children的item
+        if (filteredChildren.length === 0) {
+          const { children, ...itemWithoutChildren } = item
+          return itemWithoutChildren
+        }
+        
+        // 返回带有过滤后children的新item
         return { ...item, children: filteredChildren }
       }
+      
       return item
-    })
+    }).filter(Boolean) as MenuItem[] // 过滤掉null项
   }, [user.role]) // 只依赖用户角色，避免不必要的重新计算
 
   return (
