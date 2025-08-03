@@ -52,7 +52,7 @@ export function DomainSearch({
   // 处理搜索
   useEffect(() => {
     if (debouncedQuery.length >= minSearchLength || debouncedQuery.length === 0) {
-      if (onSearch) {
+      if (onSearch && typeof onSearch === 'function') {
         // 如果提供了 onSearch 回调，使用它
         onSearch(debouncedQuery)
       } else {
@@ -70,7 +70,7 @@ export function DomainSearch({
   // 清空搜索
   const handleClear = useCallback(() => {
     setQuery('')
-    if (onSearch) {
+    if (onSearch && typeof onSearch === 'function') {
       onSearch('')
     } else {
       updateSearchURL('')
@@ -82,7 +82,7 @@ export function DomainSearch({
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && query.length >= minSearchLength) {
       e.preventDefault()
-      if (onSearch) {
+      if (onSearch && typeof onSearch === 'function') {
         onSearch(query)
       } else {
         updateSearchURL(query)

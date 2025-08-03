@@ -1,7 +1,7 @@
 'use client'
 
 import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
-import { ChartSpline } from 'lucide-react'
+import { LineChart } from 'lucide-react'
 
 interface VisitsChartProps {
   data: Array<{
@@ -25,7 +25,7 @@ export function VisitsChart({ data }: VisitsChartProps) {
   return (
     <div>
       <div className="flex items-center gap-2 mb-4">
-        <ChartSpline className="h-4 w-4 text-primary" />
+        <LineChart className="h-4 w-4 text-primary" />
         <span className="text-sm font-medium">Visits Over Time</span>
       </div>
       <div className="w-full">

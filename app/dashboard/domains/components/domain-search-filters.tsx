@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useState, useCallback, useTransition } from 'react'
+import { useState, useCallback, useTransition, useMemo } from 'react'
 import { Search, Filter, Calendar, Globe, Tag } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -50,9 +50,8 @@ export function DomainSearchFilters() {
   const [showAdvanced, setShowAdvanced] = useState(false)
 
   // 防抖搜索
-  const debouncedSearch = useCallback(
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    debounce((value: string) => {
+  const debouncedSearch = useMemo(
+    () => debounce((value: string) => {
       const params = new URLSearchParams(searchParams.toString())
       if (value) {
         params.set('search', value)

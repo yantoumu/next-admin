@@ -111,7 +111,7 @@ export function TrafficCvExactReplica({ domain }: TrafficCvExactReplicaProps) {
                       </div>
                     </div>
                     <div className="hidden md:flex h-8 w-8 rounded-full bg-primary/10 items-center justify-center">
-                      <ChartBarBig className="h-4 w-4 text-primary" />
+                      <BarChart3 className="h-4 w-4 text-primary" />
                     </div>
                   </div>
                 </div>
