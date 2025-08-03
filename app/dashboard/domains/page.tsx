@@ -55,29 +55,18 @@ export default async function DomainsPage({ searchParams }: PageProps) {
   ])
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">域名管理</h1>
+    <div className="min-h-screen bg-white">
+      <div className="border-b bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 py-6">
+          <h1 className="text-2xl font-semibold text-gray-900">域名流量排行榜</h1>
+          <p className="text-sm text-gray-600 mt-1">实时追踪全球网站流量数据和排名变化</p>
+        </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-4">
-        <div className="md:col-span-1">
-          <DomainFilter
-            availableCategories={categories}
-            availableTlds={tlds}
-            initialFilters={filters}
-            onFilterChange={() => {
-              // 由于是服务端组件，筛选通过URL参数处理
-            }}
-          />
-        </div>
-
-        <div className="md:col-span-3 space-y-4">
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        <div className="space-y-6">
           <DomainSearch
             defaultValue={search}
-            onSearch={() => {
-              // 由于是服务端组件，搜索通过URL参数处理
-            }}
           />
 
           <Suspense fallback={<DomainListSkeleton />}>
@@ -86,9 +75,6 @@ export default async function DomainsPage({ searchParams }: PageProps) {
               totalCount={domainsData.totalCount}
               currentPage={page}
               pageSize={20}
-              onPageChange={() => {
-                // 由于是服务端组件，分页通过URL参数处理
-              }}
             />
           </Suspense>
         </div>
@@ -99,7 +85,7 @@ export default async function DomainsPage({ searchParams }: PageProps) {
 
 function DomainListSkeleton() {
   return (
-    <div className="space-y-2">
+    <div className="bg-white rounded-lg shadow-sm p-4 space-y-2">
       {[...Array(5)].map((_, i) => (
         <div key={i} className="h-16 bg-gray-100 rounded animate-pulse" />
       ))}

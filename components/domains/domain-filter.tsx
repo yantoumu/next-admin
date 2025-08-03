@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -19,7 +20,6 @@ export interface DomainFilterValues {
 }
 
 interface DomainFilterProps {
-  onFilterChange: (filters: DomainFilterValues) => void
   availableCategories?: string[]
   availableTlds?: string[]
   initialFilters?: Partial<DomainFilterValues>
@@ -35,11 +35,13 @@ const defaultFilters: DomainFilterValues = {
 }
 
 export function DomainFilter({
-  onFilterChange,
   availableCategories = [],
   availableTlds = [],
   initialFilters = {}
 }: DomainFilterProps) {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+
   const [filters, setFilters] = useState<DomainFilterValues>({
     ...defaultFilters,
     ...initialFilters
@@ -60,12 +62,60 @@ export function DomainFilter({
   // 计算活跃筛选项数量
   const activeFiltersCount = calculateActiveFilters(filters)
 
+  // 更新URL参数的函数
+  const updateURL = useCallback((newFilters: DomainFilterValues) => {
+    const params = new URLSearchParams(searchParams.toString())
+
+    // 清除页码，因为筛选后需要回到第一页
+    params.delete('page')
+
+    // 更新筛选参数
+    if (newFilters.categories.length > 0) {
+      params.set('category', newFilters.categories[0])
+    } else {
+      params.delete('category')
+    }
+
+    if (newFilters.tld) {
+      params.set('tld', newFilters.tld)
+    } else {
+      params.delete('tld')
+    }
+
+    if (newFilters.isAdult !== null) {
+      params.set('adult', newFilters.isAdult.toString())
+    } else {
+      params.delete('adult')
+    }
+
+    if (newFilters.isMovie !== null) {
+      params.set('movie', newFilters.isMovie.toString())
+    } else {
+      params.delete('movie')
+    }
+
+    if (newFilters.isTrending !== null) {
+      params.set('trending', newFilters.isTrending.toString())
+    } else {
+      params.delete('trending')
+    }
+
+    if (newFilters.rankRange !== 'all') {
+      params.set('rankRange', newFilters.rankRange)
+    } else {
+      params.delete('rankRange')
+    }
+
+    // 导航到新URL
+    router.push(`/dashboard/domains?${params.toString()}`)
+  }, [router, searchParams])
+
   // 更新筛选条件
   const updateFilters = useCallback((updates: Partial<DomainFilterValues>) => {
     const newFilters = { ...filters, ...updates }
     setFilters(newFilters)
-    onFilterChange(newFilters)
-  }, [filters, onFilterChange])
+    updateURL(newFilters)
+  }, [filters, updateURL])
 
   // 切换分类
   const toggleCategory = useCallback((category: string) => {
@@ -78,8 +128,8 @@ export function DomainFilter({
   // 重置所有筛选
   const resetFilters = useCallback(() => {
     setFilters(defaultFilters)
-    onFilterChange(defaultFilters)
-  }, [onFilterChange])
+    updateURL(defaultFilters)
+  }, [updateURL])
 
   return (
     <Card>

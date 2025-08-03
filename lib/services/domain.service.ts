@@ -28,6 +28,17 @@ export interface DomainInfoCreateInput {
   isTrending?: boolean
   countryCode?: string
   countryRank?: number
+  topCountries?: Array<{ code: string; percentage: number }>
+  topKeywords?: Array<{ keyword: string; volume: number; traffic: number; cpc?: string }>
+  categoryRank?: number
+  domainStatus?: string[]
+  title?: string
+  description?: string
+  categoryName?: string
+  trafficPeriod?: string
+  trafficPaid?: number
+  trafficMail?: number
+  monthlyTrend?: Record<string, number>
   lastUpdated?: Date
 }
 
@@ -66,6 +77,28 @@ export interface PaginationParams {
   pageSize: number
 }
 
+// 序列化域名数据，处理BigInt字段
+function serializeDomainInfo(domain: any) {
+  if (!domain) return null
+
+  return {
+    ...domain,
+    id: domain.id.toString(),
+    global_rank: domain.global_rank ? Number(domain.global_rank) : null,
+    monthly_visits: domain.monthly_visits ? domain.monthly_visits.toString() : null,
+    country_rank: domain.country_rank ? Number(domain.country_rank) : null,
+    avg_visit_duration: domain.avg_visit_duration ? Number(domain.avg_visit_duration) : null,
+    bounce_rate: domain.bounce_rate ? Number(domain.bounce_rate) : null,
+    pages_per_visit: domain.pages_per_visit ? Number(domain.pages_per_visit) : null,
+    traffic_direct: domain.traffic_direct ? Number(domain.traffic_direct) : null,
+    traffic_search: domain.traffic_search ? Number(domain.traffic_search) : null,
+    traffic_social: domain.traffic_social ? Number(domain.traffic_social) : null,
+    traffic_referral: domain.traffic_referral ? Number(domain.traffic_referral) : null,
+    traffic_paid: domain.traffic_paid ? Number(domain.traffic_paid) : null,
+    traffic_mail: domain.traffic_mail ? Number(domain.traffic_mail) : null,
+  }
+}
+
 export class DomainService {
   // 创建域名信息
   static async create(data: DomainInfoCreateInput): Promise<DomainInfo> {
@@ -95,29 +128,42 @@ export class DomainService {
         is_trending: data.isTrending,
         country_code: data.countryCode,
         country_rank: data.countryRank,
+        top_countries: data.topCountries ? JSON.parse(JSON.stringify(data.topCountries)) : undefined,
+        top_keywords: data.topKeywords ? JSON.parse(JSON.stringify(data.topKeywords)) : undefined,
+        category_rank: data.categoryRank,
+        domain_status: data.domainStatus,
+        title: data.title,
+        description: data.description,
+        category_name: data.categoryName,
+        traffic_period: data.trafficPeriod,
+        traffic_paid: data.trafficPaid,
+        traffic_mail: data.trafficMail,
+        monthly_trend: data.monthlyTrend ? JSON.parse(JSON.stringify(data.monthlyTrend)) : undefined,
         last_updated: data.lastUpdated,
       },
     })
   }
 
   // 通过ID获取域名信息
-  static async findById(id: string): Promise<DomainInfo | null> {
-    return prisma.domainInfo.findUnique({
-      where: { id },
+  static async findById(id: string | number | bigint): Promise<any> {
+    const domain = await prisma.domainInfo.findUnique({
+      where: { id: BigInt(id) },
     })
+    return serializeDomainInfo(domain)
   }
 
   // 通过域名获取信息
-  static async findByDomain(domain: string): Promise<DomainInfo | null> {
-    return prisma.domainInfo.findUnique({
+  static async findByDomain(domain: string): Promise<any> {
+    const domainInfo = await prisma.domainInfo.findUnique({
       where: { domain },
     })
+    return serializeDomainInfo(domainInfo)
   }
 
   // 更新域名信息
-  static async update(id: string, data: DomainInfoUpdateInput): Promise<DomainInfo> {
+  static async update(id: string | number | bigint, data: DomainInfoUpdateInput): Promise<DomainInfo> {
     return prisma.domainInfo.update({
-      where: { id },
+      where: { id: BigInt(id) },
       data: {
         tld: data.tld,
         registration_date: data.registrationDate,
@@ -142,23 +188,34 @@ export class DomainService {
         is_trending: data.isTrending,
         country_code: data.countryCode,
         country_rank: data.countryRank,
+        top_countries: data.topCountries ? JSON.parse(JSON.stringify(data.topCountries)) : undefined,
+        top_keywords: data.topKeywords ? JSON.parse(JSON.stringify(data.topKeywords)) : undefined,
+        category_rank: data.categoryRank,
+        domain_status: data.domainStatus,
+        title: data.title,
+        description: data.description,
+        category_name: data.categoryName,
+        traffic_period: data.trafficPeriod,
+        traffic_paid: data.trafficPaid,
+        traffic_mail: data.trafficMail,
+        monthly_trend: data.monthlyTrend ? JSON.parse(JSON.stringify(data.monthlyTrend)) : undefined,
         last_updated: data.lastUpdated,
       },
     })
   }
 
   // 删除域名信息
-  static async delete(id: string): Promise<DomainInfo> {
+  static async delete(id: string | number | bigint): Promise<DomainInfo> {
     return prisma.domainInfo.delete({
-      where: { id },
+      where: { id: BigInt(id) },
     })
   }
 
   // 批量删除
-  static async deleteMany(ids: string[]): Promise<number> {
+  static async deleteMany(ids: (string | number | bigint)[]): Promise<number> {
     const result = await prisma.domainInfo.deleteMany({
       where: {
-        id: { in: ids },
+        id: { in: ids.map(id => BigInt(id)) },
       },
     })
     return result.count
@@ -242,8 +299,10 @@ export class DomainService {
       prisma.domainInfo.findMany({
         where,
         orderBy,
-        skip: pagination ? (pagination.page - 1) * pagination.pageSize : undefined,
-        take: pagination ? pagination.pageSize : undefined,
+        ...(pagination && {
+          skip: (pagination.page - 1) * pagination.pageSize,
+          take: pagination.pageSize,
+        }),
       }),
       prisma.domainInfo.count({ where }),
     ])
@@ -314,12 +373,12 @@ export class DomainService {
 
   // 批量更新流量查询状态
   static async updateTrafficQueriedStatus(
-    domainIds: string[],
+    domainIds: (string | number | bigint)[],
     status: boolean
   ): Promise<number> {
     const result = await prisma.domainInfo.updateMany({
       where: {
-        id: { in: domainIds },
+        id: { in: domainIds.map(id => BigInt(id)) },
       },
       data: {
         traffic_queried: status,
@@ -330,12 +389,12 @@ export class DomainService {
 
   // 批量更新 WHOIS 查询状态
   static async updateWhoisQueriedStatus(
-    domainIds: string[],
+    domainIds: (string | number | bigint)[],
     status: boolean
   ): Promise<number> {
     const result = await prisma.domainInfo.updateMany({
       where: {
-        id: { in: domainIds },
+        id: { in: domainIds.map(id => BigInt(id)) },
       },
       data: {
         whois_queried: status,
@@ -428,10 +487,16 @@ export const getDomains = unstable_cache(
           monthly_visits: true,
           bounce_rate: true,
           category: true,
+          category_name: true,
+          category_rank: true,
           is_adult: true,
           is_movie: true,
           is_trending: true,
-          country_code: true
+          country_code: true,
+          title: true,
+          description: true,
+          domain_status: true,
+          traffic_period: true
         }
       }),
       prisma.domainInfo.count({ where })
@@ -439,17 +504,23 @@ export const getDomains = unstable_cache(
 
     return {
       domains: domains.map(d => ({
-        id: d.id,
+        id: d.id.toString(),
         domain: d.domain,
         tld: d.tld,
-        globalRank: d.global_rank,
-        monthlyVisits: d.monthly_visits,
+        globalRank: d.global_rank ? Number(d.global_rank) : null,
+        monthlyVisits: d.monthly_visits ? d.monthly_visits.toString() : null,
         bounceRate: d.bounce_rate ? Number(d.bounce_rate) : null,
         category: d.category,
+        categoryName: d.category_name,
+        categoryRank: d.category_rank,
         isAdult: d.is_adult,
         isMovie: d.is_movie,
         isTrending: d.is_trending,
-        countryCode: d.country_code
+        countryCode: d.country_code,
+        title: d.title,
+        description: d.description,
+        domainStatus: d.domain_status,
+        trafficPeriod: d.traffic_period
       })),
       totalCount,
       page,
@@ -537,23 +608,37 @@ export const getAvailableTlds = unstable_cache(
 )
 
 /**
- * 获取域名趋势数据（模拟数据，实际应从时间序列数据库获取）
+ * 获取域名趋势数据
+ * TODO: 从时间序列数据库或 monthly_trend 字段获取真实数据
  */
 export async function getDomainTrendData(domainId: string, period: '7d' | '30d' | '90d') {
-  // 这里返回模拟数据，实际应该从时间序列数据库查询
-  const days = period === '7d' ? 7 : period === '30d' ? 30 : 90
-  const data = []
-  
-  for (let i = days - 1; i >= 0; i--) {
-    const date = new Date()
-    date.setDate(date.getDate() - i)
-    
-    data.push({
-      date: date.toISOString().split('T')[0],
-      visits: Math.floor(Math.random() * 10000) + 5000,
-      bounceRate: Math.random() * 30 + 40
+  try {
+    const domain = await prisma.domainInfo.findUnique({
+      where: { id: BigInt(domainId) },
+      select: {
+        monthly_trend: true,
+        monthly_visits: true,
+        bounce_rate: true
+      }
     })
+    
+    if (!domain || !domain.monthly_trend) {
+      return []
+    }
+    
+    // 从 monthly_trend 提取数据
+    const trendData = domain.monthly_trend as Record<string, number>
+    const data = Object.entries(trendData)
+      .map(([date, visits]) => ({
+        date,
+        visits,
+        bounceRate: domain.bounce_rate ? Number(domain.bounce_rate) : 0
+      }))
+      .sort((a, b) => a.date.localeCompare(b.date))
+    
+    return data
+  } catch (error) {
+    console.error('Failed to fetch domain trend data:', error)
+    return []
   }
-  
-  return data
 }

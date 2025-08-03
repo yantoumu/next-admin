@@ -1,13 +1,13 @@
 'use client'
 
 import { useState, useCallback, useRef, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Search, X, Loader2 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { useDebounce } from '@/hooks/use-debounce'
 
 interface DomainSearchProps {
-  onSearch: (query: string) => void
   placeholder?: string
   defaultValue?: string
   loading?: boolean
@@ -16,25 +16,43 @@ interface DomainSearchProps {
 }
 
 export function DomainSearch({
-  onSearch,
   placeholder = '搜索域名...',
   defaultValue = '',
   loading = false,
   autoFocus = false,
   minSearchLength = 2
 }: DomainSearchProps) {
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const [query, setQuery] = useState(defaultValue)
   const inputRef = useRef<HTMLInputElement>(null)
   
   // 使用防抖优化搜索性能
   const debouncedQuery = useDebounce(query, 300)
 
+  // 更新URL参数的函数
+  const updateSearchURL = useCallback((searchQuery: string) => {
+    const params = new URLSearchParams(searchParams.toString())
+
+    // 清除页码，因为搜索后需要回到第一页
+    params.delete('page')
+
+    if (searchQuery.trim()) {
+      params.set('search', searchQuery.trim())
+    } else {
+      params.delete('search')
+    }
+
+    // 导航到新URL
+    router.push(`/dashboard/domains?${params.toString()}`)
+  }, [router, searchParams])
+
   // 处理搜索
   useEffect(() => {
     if (debouncedQuery.length >= minSearchLength || debouncedQuery.length === 0) {
-      onSearch(debouncedQuery)
+      updateSearchURL(debouncedQuery)
     }
-  }, [debouncedQuery, onSearch, minSearchLength])
+  }, [debouncedQuery, updateSearchURL, minSearchLength])
 
   // 处理输入变化
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -44,17 +62,17 @@ export function DomainSearch({
   // 清空搜索
   const handleClear = useCallback(() => {
     setQuery('')
-    onSearch('')
+    updateSearchURL('')
     inputRef.current?.focus()
-  }, [onSearch])
+  }, [updateSearchURL])
 
   // 处理回车键搜索
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && query.length >= minSearchLength) {
       e.preventDefault()
-      onSearch(query)
+      updateSearchURL(query)
     }
-  }, [query, minSearchLength, onSearch])
+  }, [query, minSearchLength, updateSearchURL])
 
   return (
     <div className="relative">
@@ -68,7 +86,7 @@ export function DomainSearch({
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
           autoFocus={autoFocus}
-          className="pl-9 pr-20"
+          className="pl-9 pr-20 h-12 text-base border-gray-200 focus:border-gray-300 focus:ring-0"
         />
         <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1">
           {query && (

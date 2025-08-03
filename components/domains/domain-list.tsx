@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -28,13 +29,19 @@ interface DomainData {
   domain: string
   tld?: string | null
   globalRank?: number | null
-  monthlyVisits?: bigint | null
+  monthlyVisits?: bigint | string | null
   bounceRate?: number | null
   category?: string | null
-  isAdult?: boolean
-  isMovie?: boolean
-  isTrending?: boolean
+  categoryName?: string | null
+  categoryRank?: number | null
+  isAdult?: boolean | null
+  isMovie?: boolean | null
+  isTrending?: boolean | null
   countryCode?: string | null
+  title?: string | null
+  description?: string | null
+  domainStatus?: string[] | null
+  trafficPeriod?: string | null
 }
 
 interface DomainListProps {
@@ -43,7 +50,6 @@ interface DomainListProps {
   totalCount?: number
   currentPage?: number
   pageSize?: number
-  onPageChange?: (page: number) => void
 }
 
 export function DomainList({
@@ -51,19 +57,33 @@ export function DomainList({
   loading = false,
   totalCount = 0,
   currentPage = 1,
-  pageSize = 20,
-  onPageChange
+  pageSize = 20
 }: DomainListProps) {
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const [hoveredDomain, setHoveredDomain] = useState<string | null>(null)
 
   const totalPages = Math.ceil(totalCount / pageSize)
   const startIndex = (currentPage - 1) * pageSize + 1
   const endIndex = Math.min(currentPage * pageSize, totalCount)
 
+  // 更新页码的函数
+  const updatePageURL = (page: number) => {
+    const params = new URLSearchParams(searchParams.toString())
+
+    if (page === 1) {
+      params.delete('page')
+    } else {
+      params.set('page', page.toString())
+    }
+
+    router.push(`/dashboard/domains?${params.toString()}`)
+  }
+
   // 格式化访问量
-  const formatVisits = (visits: bigint | null | undefined) => {
+  const formatVisits = (visits: bigint | string | null | undefined) => {
     if (!visits) return '-'
-    const num = Number(visits)
+    const num = typeof visits === 'string' ? parseInt(visits) : Number(visits)
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`
     if (num >= 1000) return `${(num / 1000).toFixed(1)}K`
     return num.toString()
@@ -76,7 +96,7 @@ export function DomainList({
   }
 
   // 获取排名趋势图标
-  const getRankTrend = (isTrending: boolean | undefined) => {
+  const getRankTrend = (isTrending: boolean | null | undefined) => {
     if (isTrending) {
       return <TrendingUp className="h-4 w-4 text-green-500" />
     }
@@ -101,18 +121,9 @@ export function DomainList({
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle>域名列表</CardTitle>
-          {totalCount > 0 && (
-            <span className="text-sm text-muted-foreground">
-              显示 {startIndex}-{endIndex} / 共 {totalCount} 个域名
-            </span>
-          )}
-        </div>
-      </CardHeader>
-      <CardContent>
+    <div>
+      <Card className="border-0 shadow-sm">
+        <CardContent className="p-0">
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
@@ -146,8 +157,8 @@ export function DomainList({
                         <Globe className="h-4 w-4 text-muted-foreground" />
                         <div>
                           <div className="font-medium">{domain.domain}</div>
-                          {domain.tld && (
-                            <span className="text-xs text-muted-foreground">.{domain.tld}</span>
+                          {domain.title && (
+                            <span className="text-xs text-muted-foreground">{domain.title}</span>
                           )}
                         </div>
                       </div>
@@ -168,9 +179,9 @@ export function DomainList({
                       {domain.bounceRate ? `${domain.bounceRate}%` : '-'}
                     </TableCell>
                     <TableCell>
-                      {domain.category ? (
+                      {domain.categoryName || domain.category ? (
                         <Badge variant="secondary" className="text-xs">
-                          {domain.category}
+                          {domain.categoryName || domain.category}
                         </Badge>
                       ) : '-'}
                     </TableCell>
@@ -209,12 +220,12 @@ export function DomainList({
         </div>
 
         {/* 分页控件 */}
-        {totalPages > 1 && onPageChange && (
+        {totalPages > 1 && (
           <div className="flex items-center justify-between mt-4">
             <Button
               variant="outline"
               size="sm"
-              onClick={() => onPageChange(currentPage - 1)}
+              onClick={() => updatePageURL(currentPage - 1)}
               disabled={currentPage === 1}
             >
               <ChevronLeft className="h-4 w-4 mr-1" />
@@ -237,7 +248,7 @@ export function DomainList({
                     variant={pageNum === currentPage ? 'default' : 'outline'}
                     size="sm"
                     className="w-8 h-8 p-0"
-                    onClick={() => onPageChange(pageNum)}
+                    onClick={() => updatePageURL(pageNum)}
                   >
                     {pageNum}
                   </Button>
@@ -248,7 +259,7 @@ export function DomainList({
             <Button
               variant="outline"
               size="sm"
-              onClick={() => onPageChange(currentPage + 1)}
+              onClick={() => updatePageURL(currentPage + 1)}
               disabled={currentPage === totalPages}
             >
               下一页
@@ -256,7 +267,8 @@ export function DomainList({
             </Button>
           </div>
         )}
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </div>
   )
 }

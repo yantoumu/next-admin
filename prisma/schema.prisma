@@ -1,40 +1,123 @@
-// PostgreSQL Prisma Schema for Next.js Admin System
-// 安全设计：防SQL注入 + 数据完整性保障
-
 generator client {
-  provider = "prisma-client-js"
-  // 启用类型安全的查询构建器
+  provider        = "prisma-client-js"
   previewFeatures = ["typedSql"]
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-  // 连接池配置，提升性能和安全性
+  provider     = "postgresql"
+  url          = env("DATABASE_URL")
   relationMode = "prisma"
 }
 
-// 用户表 - 简化版本，遵循YAGNI原则
 model User {
   id         String   @id @default(cuid())
   email      String   @unique @db.VarChar(255)
   password   String   @db.VarChar(255)
   name       String?  @db.VarChar(100)
   role       UserRole @default(member)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  updated_at DateTime @updatedAt @db.Timestamptz(6)
 
-  // 基础审计字段
-  created_at DateTime @default(now()) @db.Timestamptz
-  updated_at DateTime @updatedAt @db.Timestamptz
-
-  // 基础索引
   @@index([email])
   @@index([role])
   @@index([created_at])
-
   @@map("users")
 }
 
-// 用户角色枚举 - 简化版本
+model DomainInfo {
+  id                 BigInt    @id @default(autoincrement())
+  domain             String    @unique @db.VarChar(255)
+  tld                String?   @db.VarChar(10)
+  registration_date  DateTime? @db.Timestamptz(6)
+  expiration_date    DateTime? @db.Timestamptz(6)
+  updated_date       DateTime? @db.Timestamptz(6)
+  registrar          String?   @db.VarChar(255)
+  nameservers        String[]
+  global_rank        BigInt?
+  monthly_visits     BigInt?
+  bounce_rate        Decimal?  @db.Decimal(5, 2)
+  pages_per_visit    Decimal?  @db.Decimal(10, 2)
+  avg_visit_duration BigInt?
+  traffic_direct     Decimal?  @db.Decimal(5, 2)
+  traffic_search     Decimal?  @db.Decimal(5, 2)
+  traffic_social     Decimal?  @db.Decimal(5, 2)
+  traffic_referral   Decimal?  @db.Decimal(5, 2)
+  traffic_queried    Boolean?  @default(false)
+  whois_queried      Boolean?  @default(false)
+  last_updated       DateTime? @default(now()) @db.Timestamptz(6)
+  category           String?   @db.VarChar(100)
+  is_adult           Boolean?  @default(false)
+  is_movie           Boolean?  @default(false)
+  is_trending        Boolean?  @default(false)
+  country_code       String?   @db.VarChar(2)
+  country_rank       BigInt?
+  created_at         DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime? @default(now()) @updatedAt @db.Timestamptz(6)
+  domain_status      String[]
+  title              String?   @db.VarChar(500)
+  description        String?
+  category_rank      Int?
+  category_name      String?   @db.VarChar(100)
+  traffic_period     String?   @db.VarChar(20)
+  traffic_paid       Decimal?  @db.Decimal(5, 2)
+  traffic_mail       Decimal?  @db.Decimal(5, 2)
+  monthly_trend      Json?
+  top_countries      Json?
+  top_keywords       Json?
+
+  @@index([category], map: "idx_category")
+  @@index([country_code], map: "idx_domain_info_country_code")
+  @@index([country_rank], map: "idx_domain_info_country_rank")
+  @@index([monthly_visits(sort: Desc)], map: "idx_monthly_visits")
+  @@index([registration_date(sort: Desc)], map: "idx_registration_date")
+  @@index([top_keywords], map: "idx_top_keywords", type: Gin)
+  @@map("domain_info")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model new_domains_queue {
+  id                   BigInt    @id @default(autoincrement())
+  domain               String    @db.VarChar(255)
+  tld                  String?   @db.VarChar(10)
+  discovered_date      DateTime  @db.Timestamptz(6)
+  discovered_timestamp DateTime  @default(now()) @db.Timestamp(6)
+  processing_status    String?   @default("pending") @db.VarChar(20)
+  processed_at         DateTime? @db.Timestamp(6)
+  retry_count          Int?      @default(0)
+  created_at           DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime? @default(now()) @db.Timestamptz(6)
+
+  @@unique([domain, discovered_date])
+  @@index([domain], map: "idx_queue_domain")
+  @@index([processing_status, discovered_timestamp], map: "idx_queue_status_date")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model tasks {
+  id          String       @id @default(dbgenerated("gen_random_uuid()"))
+  title       String       @db.VarChar(255)
+  description String?
+  status      TaskStatus   @default(pending)
+  priority    TaskPriority @default(medium)
+  dueDate     DateTime?    @db.Timestamptz(6)
+  parentId    String?
+  assigneeId  String?
+  tags        String[]     @default([])
+  category    String?      @db.VarChar(50)
+  progress    Int          @default(0) @db.SmallInt
+  completedAt DateTime?    @db.Timestamptz(6)
+  createdBy   String?
+  createdAt   DateTime     @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime     @default(now()) @db.Timestamptz(6)
+
+  @@index([assigneeId])
+  @@index([createdAt])
+  @@index([dueDate])
+  @@index([parentId])
+  @@index([priority])
+  @@index([status])
+}
+
 enum UserRole {
   super_admin
   admin
@@ -42,63 +125,18 @@ enum UserRole {
   viewer
 }
 
-// 域名信息表 - 用于存储域名注册、流量等数据
-model DomainInfo {
-  id                String   @id @default(cuid())
-  domain            String   @unique @db.VarChar(255)
-  tld               String?  @db.VarChar(10)
-  
-  // 注册信息
-  registration_date DateTime? @db.Timestamptz
-  expiration_date   DateTime? @db.Timestamptz
-  updated_date      DateTime? @db.Timestamptz
-  registrar         String?   @db.VarChar(255)
-  nameservers       String[]  @db.Text
-  
-  // 流量数据
-  global_rank       Int?
-  monthly_visits    BigInt?
-  bounce_rate       Decimal? @db.Decimal(5, 2)
-  pages_per_visit   Decimal? @db.Decimal(10, 2)
-  avg_visit_duration Int?    // 秒数
-  
-  // 流量来源分布 (百分比)
-  traffic_direct    Decimal? @db.Decimal(5, 2)
-  traffic_search    Decimal? @db.Decimal(5, 2)
-  traffic_social    Decimal? @db.Decimal(5, 2)
-  traffic_referral  Decimal? @db.Decimal(5, 2)
-  
-  // 查询标记
-  traffic_queried   Boolean  @default(false)
-  whois_queried     Boolean  @default(false)
-  
-  // 分类信息
-  category          String?  @db.VarChar(100)
-  is_adult          Boolean  @default(false)
-  is_movie          Boolean  @default(false)
-  is_trending       Boolean  @default(false)
-  
-  // 地理信息
-  country_code      String?  @db.VarChar(2)
-  country_rank      Int?
-  
-  // 时间戳
-  last_updated      DateTime? @db.Timestamptz
-  created_at        DateTime  @default(now()) @db.Timestamptz
-  updated_at        DateTime  @updatedAt @db.Timestamptz
-  
-  // 索引优化
-  @@index([domain])
-  @@index([tld])
-  @@index([global_rank])
-  @@index([country_code])
-  @@index([created_at])
-  @@index([is_trending])
-  
-  @@map("domain_info")
+enum TaskPriority {
+  urgent
+  high
+  medium
+  low
 }
 
-
-
-// 移除过度设计的表，遵循YAGNI原则
-// 后续需要时再添加
+enum TaskStatus {
+  pending
+  in_progress
+  review
+  completed
+  cancelled
+  blocked
+}

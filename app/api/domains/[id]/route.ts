@@ -29,6 +29,25 @@ const updateDomainSchema = z.object({
   isTrending: z.boolean().optional(),
   countryCode: z.string().length(2).optional(),
   countryRank: z.number().int().min(0).optional(),
+  topCountries: z.array(z.object({
+    code: z.string(),
+    percentage: z.number()
+  })).optional(),
+  topKeywords: z.array(z.object({
+    keyword: z.string(),
+    volume: z.number(),
+    traffic: z.number(),
+    cpc: z.string().optional()
+  })).optional(),
+  categoryRank: z.number().int().min(0).optional(),
+  domainStatus: z.array(z.string()).optional(),
+  title: z.string().optional(),
+  description: z.string().optional(),
+  categoryName: z.string().max(100).optional(),
+  trafficPeriod: z.string().max(50).optional(),
+  trafficPaid: z.number().min(0).max(100).optional(),
+  trafficMail: z.number().min(0).max(100).optional(),
+  monthlyTrend: z.record(z.string(), z.number()).optional(),
   lastUpdated: z.string().datetime().optional(),
 })
 

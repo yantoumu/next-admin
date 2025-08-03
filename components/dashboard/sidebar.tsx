@@ -30,6 +30,12 @@ const menuItems: MenuItem[] = [
     permission: 'domains.view'
   },
   {
+    name: '关键词分析',
+    href: '/dashboard/keywords',
+    icon: '🔑',
+    permission: 'domains.view'
+  },
+  {
     name: '用户管理',
     href: PAGE_ROUTES.USERS,
     icon: '👥',
