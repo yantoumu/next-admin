@@ -1,6 +1,6 @@
 'use client'
 
-import { SquareArrowOutUpRight } from 'lucide-react'
+import { ExternalLink } from 'lucide-react'
 import Link from 'next/link'
 
 interface DomainHeaderProps {
@@ -30,7 +30,7 @@ export function DomainHeader({
             rel="noopener noreferrer"
             className="ml-1.5 p-1.5 text-foreground flex items-center justify-center hover:bg-gray-100 rounded-md"
           >
-            <SquareArrowOutUpRight className="h-4 w-4 text-muted-foreground hover:text-primary transition-all duration-200" />
+            <ExternalLink className="h-4 w-4 text-muted-foreground hover:text-primary transition-all duration-200" />
           </a>
         </div>
         <p className="text-sm text-gray-500 mt-1">

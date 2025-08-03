@@ -1,8 +1,6 @@
 'use client'
 
-import { ExternalLink, BarChart3, Clock, MousePointerClick, TrendingUp, CalendarPlus, CalendarMinus, ChartSpline } from 'lucide-react'
-import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
-import { format } from 'date-fns'
+import { ExternalLink, BarChart3, Clock, MousePointerClick, TrendingUp, CalendarPlus, CalendarMinus, LineChart } from 'lucide-react'
 
 interface DomainData {
   id: string
@@ -65,63 +63,19 @@ function MetricCard({
   )
 }
 
-// 访问量趋势图表组件
-function VisitsChart({ data }: { data: Array<{ month: string; visits: number }> }) {
-  const formatValue = (value: number) => {
-    if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`
-    if (value >= 1000) return `${(value / 1000).toFixed(0)}K`
-    return value.toString()
-  }
-
+// 简化的图表占位符组件
+function VisitsChart() {
   return (
     <div>
       <div className="flex items-center gap-2 mb-4">
-        <ChartSpline className="h-4 w-4 text-primary" />
+        <LineChart className="h-4 w-4 text-primary" />
         <span className="text-sm font-medium">Visits Over Time</span>
       </div>
-      <div className="w-full">
-        <ResponsiveContainer width="100%" height={172}>
-          <AreaChart data={data} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-            <defs>
-              <linearGradient id="colorVisits" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#6468f0" stopOpacity={0.6} />
-                <stop offset="95%" stopColor="#6468f0" stopOpacity={0.1} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#eaeaea" horizontal={true} vertical={false} />
-            <XAxis 
-              dataKey="month" 
-              axisLine={false}
-              tickLine={false}
-              tick={{ fontSize: 12, fill: '#777' }}
-              dy={10}
-            />
-            <YAxis 
-              axisLine={false}
-              tickLine={false}
-              tick={{ fontSize: 12, fill: '#777' }}
-              tickFormatter={formatValue}
-              width={60}
-            />
-            <Tooltip 
-              contentStyle={{
-                backgroundColor: 'white',
-                border: '1px solid #ccc',
-                borderRadius: '4px',
-                fontSize: '12px'
-              }}
-              formatter={(value: number) => [formatValue(value), 'Visits']}
-            />
-            <Area
-              type="monotone"
-              dataKey="visits"
-              stroke="#6468f0"
-              strokeWidth={2}
-              fill="url(#colorVisits)"
-              fillOpacity={0.6}
-            />
-          </AreaChart>
-        </ResponsiveContainer>
+      <div className="w-full h-[172px] bg-slate-50 rounded-md flex items-center justify-center">
+        <div className="text-center text-gray-500">
+          <LineChart className="h-8 w-8 mx-auto mb-2" />
+          <p className="text-sm">Chart Coming Soon</p>
+        </div>
       </div>
     </div>
   )
@@ -234,7 +188,7 @@ export function TrafficCvStyleDetail({ domain }: TrafficCvStyleDetailProps) {
 
             {/* 右侧图表 */}
             <div className="lg:col-span-2">
-              <VisitsChart data={visitsData} />
+              <VisitsChart />
             </div>
           </div>
         </div>

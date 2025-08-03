@@ -65,7 +65,7 @@ function MetricCard({
 
 export function SimpleTrafficCvDetail({ domain }: SimpleTrafficCvDetailProps) {
   // 格式化访问量
-  const formatVisits = (visits: string | null) => {
+  const formatVisits = (visits: string | null | undefined) => {
     if (!visits) return 'N/A'
     const num = parseInt(visits)
     if (num >= 1000000) return `${(num / 1000000).toFixed(2)}M`

@@ -2,7 +2,7 @@ import { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { DomainService } from '@/lib/services/domain.service'
 import { requirePermission } from '@/lib/auth-context'
-import { DomainDetailView } from '@/components/domains/domain-detail-view'
+import { SimpleDomainDetail } from '@/components/domains/simple-domain-detail'
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -34,5 +34,5 @@ export default async function DomainDetailPage({ params }: PageProps) {
     notFound()
   }
   
-  return <DomainDetailView domain={domain} />
+  return <SimpleDomainDetail domain={domain} />
 }

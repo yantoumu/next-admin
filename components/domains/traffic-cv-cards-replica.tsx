@@ -1,13 +1,13 @@
 'use client'
 
-import { 
-  ChartBarBig, 
-  Clock, 
-  MousePointerClick, 
-  TrendingUp, 
-  CalendarPlus, 
+import {
+  BarChart3,
+  Clock,
+  MousePointerClick,
+  TrendingUp,
+  CalendarPlus,
   CalendarMinus,
-  ChartSpline
+  LineChart
 } from 'lucide-react'
 import { 
   Area, 
@@ -46,7 +46,7 @@ export function TrafficCvCardsReplica({ domain }: TrafficCvCardsReplicaProps) {
   ]
 
   // 格式化访问量 - 完全按照Traffic.cv的格式
-  const formatVisits = (visits: string | null) => {
+  const formatVisits = (visits: string | null | undefined) => {
     if (!visits) return '148.42K'
     const num = parseInt(visits)
     if (num >= 1000000) return `${(num / 1000000).toFixed(2)}M`
@@ -72,7 +72,7 @@ export function TrafficCvCardsReplica({ domain }: TrafficCvCardsReplicaProps) {
                   <div className="flex items-start justify-between">
                     <div>
                       <p className="text-sm font-medium text-gray-500 flex items-center gap-1.5 text-nowrap">
-                        <ChartBarBig className="h-4 w-4 text-primary" aria-hidden="true" />
+                        <BarChart3 className="h-4 w-4 text-primary" aria-hidden="true" />
                         Total Visits
                       </p>
                       <div className="font-semibold mt-2 text-base md:text-xl">
@@ -81,7 +81,7 @@ export function TrafficCvCardsReplica({ domain }: TrafficCvCardsReplicaProps) {
                       </div>
                     </div>
                     <div className="hidden md:flex h-8 w-8 rounded-full bg-primary/10 items-center justify-center">
-                      <ChartBarBig className="h-4 w-4 text-primary" aria-hidden="true" />
+                      <BarChart3 className="h-4 w-4 text-primary" aria-hidden="true" />
                     </div>
                   </div>
                 </div>
@@ -185,7 +185,7 @@ export function TrafficCvCardsReplica({ domain }: TrafficCvCardsReplicaProps) {
             <div className="lg:col-span-2">
               <div className="">
                 <div className="flex items-center gap-2 mb-4">
-                  <ChartSpline className="h-4 w-4 text-primary" aria-hidden="true" />
+                  <LineChart className="h-4 w-4 text-primary" aria-hidden="true" />
                   <span className="text-sm font-medium">Visits Over Time</span>
                 </div>
                 <div className="w-full">

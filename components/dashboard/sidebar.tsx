@@ -71,6 +71,26 @@ interface SidebarProps {
 const SidebarComponent = function Sidebar({ user, isCollapsed = false, onToggleCollapse }: SidebarProps) {
   const pathname = usePathname()
   const [expandedItems, setExpandedItems] = useState<string[]>([])
+  
+  // 使用 useMemo 确保 filteredMenuItems 在服务端和客户端保持一致
+  const filteredMenuItems = useMemo(() => {
+    return menuItems
+      .filter(item => {
+        // 检查主菜单权限
+        if (item.permission && !hasPermission(user.role, item.permission as any)) {
+          return false
+        }
+        return true
+      })
+      .map(item => {
+        // 确保没有 children 的项目真的没有 children 属性
+        if (!item.children || item.children.length === 0) {
+          const { children, ...itemWithoutChildren } = item
+          return itemWithoutChildren
+        }
+        return item
+      })
+  }, [user.role])
 
   // 缓存切换子菜单展开状态的函数
   const toggleExpanded = useCallback((href: string) => {
@@ -87,15 +107,6 @@ const SidebarComponent = function Sidebar({ user, isCollapsed = false, onToggleC
     return expandedItems.includes(item.href) ||
            item.children.some(child => pathname.startsWith(child.href))
   }, [expandedItems, pathname])
-
-  // 过滤菜单项
-  const filteredMenuItems = menuItems.filter(item => {
-    // 检查主菜单权限
-    if (item.permission && !hasPermission(user.role, item.permission as any)) {
-      return false
-    }
-    return true
-  })
 
   return (
     <div className={`flex flex-col h-full transition-all duration-300 ${isCollapsed ? 'w-16' : 'w-64'}`}>
@@ -124,7 +135,7 @@ const SidebarComponent = function Sidebar({ user, isCollapsed = false, onToggleC
           <div key={item.href}>
             {/* 主菜单项 */}
             <div className="flex items-center">
-              {item.children && item.children.length > 0 ? (
+              {'children' in item && item.children && item.children.length > 0 ? (
                 <button
                   onClick={() => toggleExpanded(item.href)}
                   className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors flex-1 text-left ${
@@ -153,7 +164,7 @@ const SidebarComponent = function Sidebar({ user, isCollapsed = false, onToggleC
               )}
 
               {/* 展开/收起按钮 */}
-              {!isCollapsed && item.children && item.children.length > 0 && (
+              {!isCollapsed && 'children' in item && item.children && item.children.length > 0 && (
                 <button
                   onClick={() => toggleExpanded(item.href)}
                   className="p-1 rounded hover:bg-gray-100 transition-colors ml-1"
@@ -169,7 +180,7 @@ const SidebarComponent = function Sidebar({ user, isCollapsed = false, onToggleC
             </div>
 
             {/* 子菜单 */}
-            {!isCollapsed && item.children && item.children.length > 0 && shouldExpand(item) && (
+            {!isCollapsed && 'children' in item && item.children && item.children.length > 0 && shouldExpand(item) && (
               <div className="ml-6 mt-2 space-y-1 animate-in slide-in-from-top-2 duration-200">
                 {item.children
                   .filter(child => !child.permission || hasPermission(user.role, child.permission as any))

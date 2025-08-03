@@ -1,12 +1,12 @@
 'use client'
 
-import { 
-  ChartBarBig, 
-  Clock, 
-  MousePointerClick, 
-  TrendingUp, 
-  CalendarPlus, 
-  CalendarMinus 
+import {
+  BarChart3,
+  Clock,
+  MousePointerClick,
+  TrendingUp,
+  CalendarPlus,
+  CalendarMinus
 } from 'lucide-react'
 import { MetricCard } from './metric-card'
 import { VisitsChart } from './visits-chart'
@@ -78,7 +78,7 @@ export function MetricsGrid({ metrics, visitsData }: MetricsGridProps) {
         <MetricCard
           title="Total Visits"
           value={formatVisits(metrics.totalVisits)}
-          icon={ChartBarBig}
+          icon={BarChart3}
           change={formatTrend(metrics.visitsTrend)}
         />
         

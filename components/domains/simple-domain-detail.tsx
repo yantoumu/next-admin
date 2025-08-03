@@ -39,7 +39,7 @@ interface SimpleDomainDetailProps {
 
 export function SimpleDomainDetail({ domain }: SimpleDomainDetailProps) {
   // 格式化数字 - 完全按照参考代码的格式
-  const formatNumber = (num: number | string | null) => {
+  const formatNumber = (num: number | string | null | undefined) => {
     if (!num) return 'N/A'
     const numValue = typeof num === 'string' ? parseInt(num) : num
     if (numValue >= 1000000) return `${(numValue / 1000000).toFixed(1)}M`

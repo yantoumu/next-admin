@@ -1,14 +1,14 @@
 'use client'
 
 import { 
-  ChartBarBig, 
+  BarChart3, 
   Clock, 
   MousePointerClick, 
   TrendingUp, 
   CalendarPlus, 
   CalendarMinus,
-  ChartSpline,
-  SquareArrowOutUpRight 
+  LineChart,
+  ExternalLink 
 } from 'lucide-react'
 import { 
   Area, 
@@ -50,7 +50,7 @@ export function TrafficCvExactReplica({ domain }: TrafficCvExactReplicaProps) {
   ]
 
   // 格式化访问量 - 完全按照Traffic.cv的格式
-  const formatVisits = (visits: string | null) => {
+  const formatVisits = (visits: string | null | undefined) => {
     if (!visits) return '148.42K'
     const num = parseInt(visits)
     if (num >= 1000000) return `${(num / 1000000).toFixed(2)}M`
@@ -74,7 +74,7 @@ export function TrafficCvExactReplica({ domain }: TrafficCvExactReplicaProps) {
                   target="_blank" 
                   className="ml-1.5 p-1.5 text-foreground flex items-center justify-center hover:bg-gray-100 rounded-md"
                 >
-                  <SquareArrowOutUpRight className="h-4 w-4 text-muted-foreground hover:text-primary transition-all duration-200" />
+                  <ExternalLink className="h-4 w-4 text-muted-foreground hover:text-primary transition-all duration-200" />
                 </a>
               </div>
               <p className="text-sm text-gray-500 mt-1">
@@ -102,7 +102,7 @@ export function TrafficCvExactReplica({ domain }: TrafficCvExactReplicaProps) {
                   <div className="flex items-start justify-between">
                     <div>
                       <p className="text-sm font-medium text-gray-500 flex items-center gap-1.5 text-nowrap">
-                        <ChartBarBig className="h-4 w-4 text-primary" />
+                        <BarChart3 className="h-4 w-4 text-primary" />
                         Total Visits
                       </p>
                       <div className="font-semibold mt-2 text-base md:text-xl">
@@ -215,7 +215,7 @@ export function TrafficCvExactReplica({ domain }: TrafficCvExactReplicaProps) {
             <div className="lg:col-span-2">
               <div className="">
                 <div className="flex items-center gap-2 mb-4">
-                  <ChartSpline className="h-4 w-4 text-primary" />
+                  <LineChart className="h-4 w-4 text-primary" />
                   <span className="text-sm font-medium">Visits Over Time</span>
                 </div>
                 <div className="w-full">
