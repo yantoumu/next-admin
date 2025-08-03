@@ -83,7 +83,7 @@ const SidebarComponent = function Sidebar({ user, isCollapsed = false, onToggleC
 
   // 缓存检查是否应该展开的函数
   const shouldExpand = useCallback((item: MenuItem) => {
-    if (!item.children) return false
+    if (!item.children || item.children.length === 0) return false
     return expandedItems.includes(item.href) ||
            item.children.some(child => pathname.startsWith(child.href))
   }, [expandedItems, pathname])
@@ -124,7 +124,7 @@ const SidebarComponent = function Sidebar({ user, isCollapsed = false, onToggleC
           <div key={item.href}>
             {/* 主菜单项 */}
             <div className="flex items-center">
-              {item.children ? (
+              {item.children && item.children.length > 0 ? (
                 <button
                   onClick={() => toggleExpanded(item.href)}
                   className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors flex-1 text-left ${
@@ -153,7 +153,7 @@ const SidebarComponent = function Sidebar({ user, isCollapsed = false, onToggleC
               )}
 
               {/* 展开/收起按钮 */}
-              {!isCollapsed && item.children && (
+              {!isCollapsed && item.children && item.children.length > 0 && (
                 <button
                   onClick={() => toggleExpanded(item.href)}
                   className="p-1 rounded hover:bg-gray-100 transition-colors ml-1"
@@ -169,7 +169,7 @@ const SidebarComponent = function Sidebar({ user, isCollapsed = false, onToggleC
             </div>
 
             {/* 子菜单 */}
-            {!isCollapsed && item.children && shouldExpand(item) && (
+            {!isCollapsed && item.children && item.children.length > 0 && shouldExpand(item) && (
               <div className="ml-6 mt-2 space-y-1 animate-in slide-in-from-top-2 duration-200">
                 {item.children
                   .filter(child => !child.permission || hasPermission(user.role, child.permission as any))
