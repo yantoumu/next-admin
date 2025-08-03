@@ -1,13 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
-import { LayoutGrid, TableIcon, TrendingUp, TrendingDown, Calendar, Globe, Search, ChevronRight } from 'lucide-react'
+import { LayoutGrid, TableIcon, TrendingUp, TrendingDown, Calendar, Globe, Search, ChevronRight, ChevronUp, ChevronDown } from 'lucide-react'
 import Link from 'next/link'
+import { useRouter, useSearchParams } from 'next/navigation'
 
 interface DomainData {
   id: string
@@ -31,11 +31,33 @@ interface KeywordAnalysisViewProps {
 
 type ViewMode = 'card' | 'table'
 type SortBy = 'searchResults' | 'trafficVolume' | 'trafficGrowth' | 'growthRate' | 'registrationDate'
+type SortDirection = 'asc' | 'desc'
 
 export function KeywordAnalysisView({ keyword, data }: KeywordAnalysisViewProps) {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  
   const [viewMode, setViewMode] = useState<ViewMode>('card')
   const [sortBy, setSortBy] = useState<SortBy>('searchResults')
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
   const [searchKeyword, setSearchKeyword] = useState(keyword)
+  
+  // Initialize from URL parameters
+  useEffect(() => {
+    const view = searchParams.get('view') as ViewMode
+    const sort = searchParams.get('sort') as SortBy
+    const direction = searchParams.get('direction') as SortDirection
+    
+    if (view && ['card', 'table'].includes(view)) {
+      setViewMode(view)
+    }
+    if (sort && ['searchResults', 'trafficVolume', 'trafficGrowth', 'growthRate', 'registrationDate'].includes(sort)) {
+      setSortBy(sort)
+    }
+    if (direction && ['asc', 'desc'].includes(direction)) {
+      setSortDirection(direction)
+    }
+  }, [searchParams])
   
   // 格式化数字
   const formatNumber = (num: string | number | undefined) => {
@@ -60,7 +82,7 @@ export function KeywordAnalysisView({ keyword, data }: KeywordAnalysisViewProps)
   // 处理搜索
   const handleSearch = () => {
     if (searchKeyword.trim()) {
-      window.location.href = `/dashboard/keywords/${encodeURIComponent(searchKeyword.trim())}`
+      router.push(`/dashboard/keywords/${encodeURIComponent(searchKeyword.trim())}`)
     }
   }
 
@@ -70,6 +92,73 @@ export function KeywordAnalysisView({ keyword, data }: KeywordAnalysisViewProps)
       handleSearch()
     }
   }
+  
+  // 更新URL参数
+  const updateURLParams = (params: Record<string, string>) => {
+    const current = new URLSearchParams(searchParams.toString())
+    Object.entries(params).forEach(([key, value]) => {
+      current.set(key, value)
+    })
+    router.push(`${window.location.pathname}?${current.toString()}`)
+  }
+  
+  // 处理排序点击
+  const handleSort = (newSortBy: SortBy) => {
+    if (sortBy === newSortBy) {
+      // 如果点击同一个排序项，切换方向
+      const newDirection = sortDirection === 'desc' ? 'asc' : 'desc'
+      setSortDirection(newDirection)
+      updateURLParams({ sort: newSortBy, direction: newDirection })
+    } else {
+      // 如果点击新的排序项，默认降序
+      setSortBy(newSortBy)
+      setSortDirection('desc')
+      updateURLParams({ sort: newSortBy, direction: 'desc' })
+    }
+  }
+  
+  // 处理视图切换
+  const handleViewChange = (newView: ViewMode) => {
+    setViewMode(newView)
+    updateURLParams({ view: newView })
+  }
+  
+  // 对数据进行排序
+  const sortedDomains = [...data.domains].sort((a, b) => {
+    let aValue: any, bValue: any
+    
+    switch (sortBy) {
+      case 'searchResults':
+        // 默认按搜索相关性排序（这里简单按ID排序）
+        aValue = a.id
+        bValue = b.id
+        break
+      case 'trafficVolume':
+        aValue = parseInt(a.monthlyVisits || '0')
+        bValue = parseInt(b.monthlyVisits || '0')
+        break
+      case 'trafficGrowth':
+        aValue = a.trafficGrowth || 0
+        bValue = b.trafficGrowth || 0
+        break
+      case 'growthRate':
+        aValue = a.growthRate || 0
+        bValue = b.growthRate || 0
+        break
+      case 'registrationDate':
+        aValue = a.registrationDate ? new Date(a.registrationDate).getTime() : 0
+        bValue = b.registrationDate ? new Date(b.registrationDate).getTime() : 0
+        break
+      default:
+        return 0
+    }
+    
+    if (sortDirection === 'asc') {
+      return aValue > bValue ? 1 : -1
+    } else {
+      return aValue < bValue ? 1 : -1
+    }
+  })
 
   return (
     <div>
@@ -87,7 +176,7 @@ export function KeywordAnalysisView({ keyword, data }: KeywordAnalysisViewProps)
 
           {/* 标题 */}
           <h1 className="text-2xl font-semibold text-gray-900">
-            Keyword Traffic Analysis for "{keyword}"
+            Keyword Traffic Analysis for &ldquo;{keyword}&rdquo;
           </h1>
           <p className="text-sm text-gray-600 mt-1">
             Showing {data.totalResults} websites ranking for this keyword
@@ -121,35 +210,98 @@ export function KeywordAnalysisView({ keyword, data }: KeywordAnalysisViewProps)
         </div>
 
         {/* 工具栏 */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-600">Sort by:</span>
-            <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortBy)}>
-              <SelectTrigger className="w-48">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="searchResults">Search Results</SelectItem>
-                <SelectItem value="trafficVolume">Traffic Volume</SelectItem>
-                <SelectItem value="trafficGrowth">Traffic Growth Volume</SelectItem>
-                <SelectItem value="growthRate">Volume Growth Rate</SelectItem>
-                <SelectItem value="registrationDate">Registration Date</SelectItem>
-              </SelectContent>
-            </Select>
+        <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-600 mr-2">Sort by:</span>
+            
+            <button
+              onClick={() => handleSort('searchResults')}
+              className={`inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                sortBy === 'searchResults' 
+                  ? 'text-blue-600 bg-blue-50' 
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+              }`}
+            >
+              <span className="hidden sm:inline">Search Results</span>
+              <span className="sm:hidden">Results</span>
+              {sortBy === 'searchResults' && (
+                sortDirection === 'desc' ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />
+              )}
+            </button>
+            
+            <button
+              onClick={() => handleSort('trafficVolume')}
+              className={`inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                sortBy === 'trafficVolume' 
+                  ? 'text-blue-600 bg-blue-50' 
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+              }`}
+            >
+              <span className="hidden sm:inline">Traffic Volume</span>
+              <span className="sm:hidden">Traffic</span>
+              {sortBy === 'trafficVolume' && (
+                sortDirection === 'desc' ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />
+              )}
+            </button>
+            
+            <button
+              onClick={() => handleSort('trafficGrowth')}
+              className={`inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                sortBy === 'trafficGrowth' 
+                  ? 'text-blue-600 bg-blue-50' 
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+              }`}
+            >
+              <span className="hidden sm:inline">Growth Volume</span>
+              <span className="sm:hidden">Growth</span>
+              {sortBy === 'trafficGrowth' && (
+                sortDirection === 'desc' ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />
+              )}
+            </button>
+            
+            <button
+              onClick={() => handleSort('growthRate')}
+              className={`inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                sortBy === 'growthRate' 
+                  ? 'text-blue-600 bg-blue-50' 
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+              }`}
+            >
+              <span className="hidden sm:inline">Growth Rate</span>
+              <span className="sm:hidden">Rate</span>
+              {sortBy === 'growthRate' && (
+                sortDirection === 'desc' ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />
+              )}
+            </button>
+            
+            <button
+              onClick={() => handleSort('registrationDate')}
+              className={`inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                sortBy === 'registrationDate' 
+                  ? 'text-blue-600 bg-blue-50' 
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+              }`}
+            >
+              <span className="hidden sm:inline">Registration Date</span>
+              <span className="sm:hidden">Date</span>
+              {sortBy === 'registrationDate' && (
+                sortDirection === 'desc' ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />
+              )}
+            </button>
           </div>
 
           <div className="flex items-center gap-2">
             <Button
               variant={viewMode === 'card' ? 'default' : 'outline'}
               size="sm"
-              onClick={() => setViewMode('card')}
+              onClick={() => handleViewChange('card')}
             >
               <LayoutGrid className="h-4 w-4" />
             </Button>
             <Button
               variant={viewMode === 'table' ? 'default' : 'outline'}
               size="sm"
-              onClick={() => setViewMode('table')}
+              onClick={() => handleViewChange('table')}
             >
               <TableIcon className="h-4 w-4" />
             </Button>
@@ -160,9 +312,9 @@ export function KeywordAnalysisView({ keyword, data }: KeywordAnalysisViewProps)
         {data.loading ? (
           <LoadingSkeleton viewMode={viewMode} />
         ) : viewMode === 'card' ? (
-          <CardView domains={data.domains} formatNumber={formatNumber} formatDate={formatDate} />
+          <CardView domains={sortedDomains} formatNumber={formatNumber} formatDate={formatDate} />
         ) : (
-          <TableView domains={data.domains} formatNumber={formatNumber} formatDate={formatDate} />
+          <TableView domains={sortedDomains} formatNumber={formatNumber} formatDate={formatDate} />
         )}
       </div>
     </div>

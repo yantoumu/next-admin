@@ -51,6 +51,7 @@ export function DomainSearchFilters() {
 
   // 防抖搜索
   const debouncedSearch = useCallback(
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     debounce((value: string) => {
       const params = new URLSearchParams(searchParams.toString())
       if (value) {
