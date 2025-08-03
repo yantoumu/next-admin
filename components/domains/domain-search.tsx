@@ -13,6 +13,7 @@ interface DomainSearchProps {
   loading?: boolean
   autoFocus?: boolean
   minSearchLength?: number
+  onSearch?: (query: string) => void  // 向后兼容
 }
 
 export function DomainSearch({
@@ -20,7 +21,8 @@ export function DomainSearch({
   defaultValue = '',
   loading = false,
   autoFocus = false,
-  minSearchLength = 2
+  minSearchLength = 2,
+  onSearch
 }: DomainSearchProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -50,9 +52,15 @@ export function DomainSearch({
   // 处理搜索
   useEffect(() => {
     if (debouncedQuery.length >= minSearchLength || debouncedQuery.length === 0) {
-      updateSearchURL(debouncedQuery)
+      if (onSearch) {
+        // 如果提供了 onSearch 回调，使用它
+        onSearch(debouncedQuery)
+      } else {
+        // 否则使用默认的 URL 更新行为
+        updateSearchURL(debouncedQuery)
+      }
     }
-  }, [debouncedQuery, updateSearchURL, minSearchLength])
+  }, [debouncedQuery, updateSearchURL, minSearchLength, onSearch])
 
   // 处理输入变化
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -62,17 +70,25 @@ export function DomainSearch({
   // 清空搜索
   const handleClear = useCallback(() => {
     setQuery('')
-    updateSearchURL('')
+    if (onSearch) {
+      onSearch('')
+    } else {
+      updateSearchURL('')
+    }
     inputRef.current?.focus()
-  }, [updateSearchURL])
+  }, [updateSearchURL, onSearch])
 
   // 处理回车键搜索
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && query.length >= minSearchLength) {
       e.preventDefault()
-      updateSearchURL(query)
+      if (onSearch) {
+        onSearch(query)
+      } else {
+        updateSearchURL(query)
+      }
     }
-  }, [query, minSearchLength, updateSearchURL])
+  }, [query, minSearchLength, updateSearchURL, onSearch])
 
   return (
     <div className="relative">
