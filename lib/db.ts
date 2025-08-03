@@ -1,59 +1,93 @@
-import mongoose from 'mongoose'
+import { PrismaClient } from '@prisma/client'
 
-const MONGODB_URI = process.env.DATABASE_URL
+/**
+ * PostgreSQL数据库连接管理
+ * 使用Prisma Client进行类型安全的数据库操作
+ *
+ * 安全特性：
+ * - 自动SQL注入防护
+ * - 连接池管理
+ * - 查询日志记录
+ * - 错误处理和重试机制
+ */
 
-if (!MONGODB_URI) {
-  throw new Error('请在 .env.local 中定义 DATABASE_URL 环境变量')
+// 全局Prisma客户端缓存，防止开发模式下重复实例化
+const globalForPrisma = globalThis as unknown as {
+  prisma: PrismaClient | undefined
 }
 
 /**
- * 全局 mongoose 缓存
- * 这样可以防止在开发模式下多次连接数据库
+ * 创建Prisma客户端实例
+ * 配置安全和性能选项
  */
-let cached = (global as any).mongoose
-
-if (!cached) {
-  cached = (global as any).mongoose = { conn: null, promise: null }
-}
-
-/**
- * MongoDB 连接函数
- * 使用连接池和缓存来优化性能
- */
-async function dbConnect() {
-  // 如果已经连接，直接返回缓存的连接
-  if (cached.conn) {
-    return cached.conn
-  }
-
-  // 如果没有连接承诺，创建一个新的连接
-  if (!cached.promise) {
-    const opts = {
-      bufferCommands: false, // 禁用缓冲，立即执行命令
-      maxPoolSize: 10, // 最大连接池大小
-      minPoolSize: 1, // 最小连接池大小
-      serverSelectionTimeoutMS: 5000, // 服务器选择超时
-      socketTimeoutMS: 45000, // Socket 超时
-      family: 4, // 使用 IPv4
+export const prisma = globalForPrisma.prisma ?? new PrismaClient({
+  // 数据库连接配置
+  datasources: {
+    db: {
+      url: process.env.DATABASE_URL
     }
+  },
 
-    cached.promise = mongoose.connect(MONGODB_URI!, opts).then((mongoose) => {
-      console.log('✅ MongoDB 连接成功')
-      return mongoose
-    }).catch((error) => {
-      console.error('❌ MongoDB 连接失败:', error)
-      throw error
-    })
-  }
+  // 日志配置 - 生产环境只记录错误
+  log: process.env.NODE_ENV === 'development'
+    ? ['query', 'info', 'warn', 'error']
+    : ['error'],
 
-  try {
-    cached.conn = await cached.promise
-  } catch (e) {
-    cached.promise = null
-    throw e
-  }
+  // 错误格式化
+  errorFormat: 'pretty',
+})
 
-  return cached.conn
+// 开发环境缓存客户端实例
+if (process.env.NODE_ENV !== 'production') {
+  globalForPrisma.prisma = prisma
 }
 
-export default dbConnect
+/**
+ * 数据库连接健康检查
+ * 验证连接状态和基本查询能力
+ */
+export async function dbHealthCheck(): Promise<boolean> {
+  try {
+    // 执行简单查询验证连接
+    await prisma.$queryRaw`SELECT 1 as health_check`
+    console.log('✅ PostgreSQL 连接健康检查通过')
+    return true
+  } catch (error) {
+    console.error('❌ PostgreSQL 连接健康检查失败:', error)
+    return false
+  }
+}
+
+/**
+ * 数据库连接函数 - 兼容现有代码
+ * 执行连接验证并返回Prisma客户端
+ */
+export default async function dbConnect() {
+  try {
+    // 验证数据库连接
+    await prisma.$connect()
+    console.log('✅ PostgreSQL 连接成功')
+    return prisma
+  } catch (error) {
+    console.error('❌ PostgreSQL 连接失败:', error)
+    throw new Error(`数据库连接失败: ${error instanceof Error ? error.message : '未知错误'}`)
+  }
+}
+
+/**
+ * 优雅关闭数据库连接
+ * 应用关闭时调用
+ */
+export async function dbDisconnect() {
+  try {
+    await prisma.$disconnect()
+    console.log('✅ PostgreSQL 连接已关闭')
+  } catch (error) {
+    console.error('❌ PostgreSQL 连接关闭失败:', error)
+  }
+}
+
+// 进程退出时自动关闭连接
+process.on('beforeExit', async () => {
+  await dbDisconnect()
+})

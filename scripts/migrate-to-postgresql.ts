@@ -140,6 +140,14 @@ async function migrateUsers(): Promise<MigrationStats> {
 
     for (const mongoUser of mongoUsers) {
       try {
+        // 验证必要字段
+        if (!mongoUser.email || !mongoUser.password) {
+          const error = `用户缺少必要字段: ${mongoUser.email || 'unknown'}`
+          console.error(`❌ ${error}`)
+          stats.errors.push(error)
+          continue
+        }
+
         // 检查用户是否已存在
         const existingUser = await prisma.user.findUnique({
           where: { email: mongoUser.email }
@@ -151,13 +159,7 @@ async function migrateUsers(): Promise<MigrationStats> {
           continue
         }
 
-        // 验证必要字段
-        if (!mongoUser.email || !mongoUser.password) {
-          const error = `用户缺少必要字段: ${mongoUser.email || 'unknown'}`
-          console.error(`❌ ${error}`)
-          stats.errors.push(error)
-          continue
-        }
+        // 重复验证已移除，在上面已经检查过
 
         // 验证密码哈希格式
         if (!isValidBcryptHash(mongoUser.password)) {

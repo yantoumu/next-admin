@@ -5,6 +5,21 @@
 
 import { User } from '@/types/auth'
 
+/**
+ * 将SafeUser转换为User类型
+ * 解决Date vs string类型不兼容问题
+ */
+function safeUserToUser(safeUser: any): User {
+  return {
+    id: safeUser.id,
+    email: safeUser.email,
+    name: safeUser.name,
+    role: safeUser.role,
+    created_at: safeUser.created_at.toISOString(),
+    updated_at: safeUser.updated_at.toISOString()
+  }
+}
+
 export interface AuthContext {
   user: User | null
   isStatic: boolean
@@ -35,16 +50,12 @@ export class DynamicAuthProvider {
         return null
       }
 
-      // 实际认证逻辑 - 使用JWT验证
-      const { verifyToken } = await import('./auth')
-      const { databaseAdapter } = await import('./database-adapter')
+      // 简化认证逻辑 - 直接使用PostgreSQL认证系统
+      const { getCurrentUser } = await import('./auth')
 
-      const decoded = await verifyToken(accessToken)
-      if (!decoded) {
-        return null
-      }
-
-      return await databaseAdapter.getUser(decoded.userId)
+      // 从cookie中获取用户信息（PostgreSQL版本）
+      const safeUser = await getCurrentUser()
+      return safeUser ? safeUserToUser(safeUser) : null
     } catch (error) {
       console.error('Auth error:', error)
       return null
@@ -59,4 +70,45 @@ export class AuthProviderFactory {
   static create(isStatic = false) {
     return isStatic ? new StaticAuthProvider() : new DynamicAuthProvider()
   }
+}
+
+/**
+ * 简化的认证检查函数 - 重新导出auth.ts的函数
+ */
+export async function requireAuth() {
+  const { requireAuth: authRequireAuth } = await import('./auth')
+  return authRequireAuth()
+}
+
+/**
+ * 权限检查函数 - 基于role的权限验证
+ */
+export async function requirePermission(permission: string) {
+  const user = await requireAuth()
+  
+  // 简化权限检查 - 基于角色层级
+  const rolePermissions: Record<string, string[]> = {
+    'viewer': ['dashboard.view', 'profile.*'],
+    'member': ['dashboard.view', 'profile.*', 'users.view'],
+    'admin': ['dashboard.view', 'profile.*', 'users.*'],
+    'super_admin': ['*'] // 超级管理员拥有所有权限
+  }
+  
+  const userPermissions = rolePermissions[user.role] || []
+  
+  // 检查是否有通配符权限或具体权限
+  const hasPermission = userPermissions.includes('*') || 
+    userPermissions.some(p => {
+      if (p.endsWith('*')) {
+        const prefix = p.slice(0, -1)
+        return permission.startsWith(prefix)
+      }
+      return p === permission
+    })
+  
+  if (!hasPermission) {
+    throw new Error(`Permission denied: ${permission}`)
+  }
+  
+  return user
 }

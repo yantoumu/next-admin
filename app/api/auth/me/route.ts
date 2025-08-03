@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '@/lib/db'
 import { createSuccessResponse, createErrorResponse, APIErrorCode } from '@/lib/api-response'
 import { APIError, UnauthorizedError } from '@/lib/error-handler'
 import { getCurrentUserServer } from '@/lib/auth'
-
-const prisma = new PrismaClient()
 
 /**
  * GET /api/auth/me - 获取当前用户信息

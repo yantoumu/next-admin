@@ -1,7 +1,19 @@
 import { prisma } from '@/lib/db'
 import { User, UserRole, Prisma } from '@prisma/client'
 import bcrypt from 'bcryptjs'
-import { CreateUserRequest, UpdateUserRequest } from '@/types/auth'
+// 临时类型定义，后续需要创建完整的types文件
+interface CreateUserRequest {
+  email: string
+  password: string
+  name?: string
+  role?: UserRole
+}
+
+interface UpdateUserRequest {
+  name?: string
+  role?: UserRole
+  password?: string
+}
 
 /**
  * 用户服务层 - PostgreSQL + Prisma实现
@@ -17,13 +29,10 @@ export class UserService {
   /**
    * 根据ID获取用户（不包含密码）
    */
-  static async getUserById(id: string): Promise<User | null> {
+  static async getUserById(id: string): Promise<Omit<User, 'password'> | null> {
     try {
       return await prisma.user.findUnique({
-        where: { 
-          id,
-          deleted_at: null // 排除软删除的用户
-        },
+        where: { id },
         select: {
           id: true,
           email: true,
@@ -31,9 +40,6 @@ export class UserService {
           role: true,
           created_at: true,
           updated_at: true,
-          last_login: true,
-          login_attempts: true,
-          locked_until: true,
           // 不返回password字段
         }
       })
@@ -49,9 +55,8 @@ export class UserService {
   static async getUserByEmailWithPassword(email: string): Promise<User | null> {
     try {
       return await prisma.user.findUnique({
-        where: { 
-          email: email.toLowerCase().trim(),
-          deleted_at: null
+        where: {
+          email: email.toLowerCase().trim()
         }
       })
     } catch (error) {
@@ -66,9 +71,8 @@ export class UserService {
   static async getUserByEmail(email: string): Promise<Omit<User, 'password'> | null> {
     try {
       return await prisma.user.findUnique({
-        where: { 
-          email: email.toLowerCase().trim(),
-          deleted_at: null
+        where: {
+          email: email.toLowerCase().trim()
         },
         select: {
           id: true,
@@ -77,9 +81,6 @@ export class UserService {
           role: true,
           created_at: true,
           updated_at: true,
-          last_login: true,
-          login_attempts: true,
-          locked_until: true,
         }
       })
     } catch (error) {
@@ -111,7 +112,7 @@ export class UserService {
           email: userData.email.toLowerCase().trim(),
           password: hashedPassword,
           name: userData.name?.trim(),
-          role: userData.role || UserRole.MEMBER,
+          role: userData.role || UserRole.member,
         },
         select: {
           id: true,
@@ -120,17 +121,10 @@ export class UserService {
           role: true,
           created_at: true,
           updated_at: true,
-          last_login: true,
-          login_attempts: true,
-          locked_until: true,
         }
       })
 
-      // 记录审计日志
-      await this.logAudit(newUser.id, 'CREATE', 'users', { 
-        email: newUser.email, 
-        role: newUser.role 
-      })
+      // 简化版本：移除审计日志，遵循YAGNI原则
 
       return newUser
     } catch (error) {
@@ -161,10 +155,7 @@ export class UserService {
       }
 
       const updatedUser = await prisma.user.update({
-        where: { 
-          id,
-          deleted_at: null
-        },
+        where: { id },
         data: updateData,
         select: {
           id: true,
@@ -173,14 +164,10 @@ export class UserService {
           role: true,
           created_at: true,
           updated_at: true,
-          last_login: true,
-          login_attempts: true,
-          locked_until: true,
         }
       })
 
-      // 记录审计日志
-      await this.logAudit(id, 'UPDATE', 'users', updates)
+      // 简化版本：移除审计日志，遵循YAGNI原则
 
       return updatedUser
     } catch (error) {
@@ -190,19 +177,13 @@ export class UserService {
   }
 
   /**
-   * 软删除用户
+   * 删除用户 - 简化版本
    */
   static async deleteUser(id: string): Promise<void> {
     try {
-      await prisma.user.update({
-        where: { id },
-        data: { 
-          deleted_at: new Date()
-        }
+      await prisma.user.delete({
+        where: { id }
       })
-
-      // 记录审计日志
-      await this.logAudit(id, 'DELETE', 'users', { user_id: id })
     } catch (error) {
       console.error('删除用户失败:', error)
       throw new Error('删除用户失败')
@@ -210,92 +191,12 @@ export class UserService {
   }
 
   /**
-   * 更新登录信息
-   */
-  static async updateLoginInfo(id: string, success: boolean, ipAddress?: string): Promise<void> {
-    try {
-      if (success) {
-        // 登录成功：重置失败次数，更新最后登录时间
-        await prisma.user.update({
-          where: { id },
-          data: {
-            last_login: new Date(),
-            login_attempts: 0,
-            locked_until: null
-          }
-        })
-      } else {
-        // 登录失败：增加失败次数
-        const user = await prisma.user.findUnique({
-          where: { id },
-          select: { login_attempts: true }
-        })
-
-        const attempts = (user?.login_attempts || 0) + 1
-        const lockUntil = attempts >= 5 ? new Date(Date.now() + 30 * 60 * 1000) : null // 5次失败锁定30分钟
-
-        await prisma.user.update({
-          where: { id },
-          data: {
-            login_attempts: attempts,
-            locked_until: lockUntil
-          }
-        })
-      }
-    } catch (error) {
-      console.error('更新登录信息失败:', error)
-    }
-  }
-
-  /**
-   * 记录审计日志
-   */
-  private static async logAudit(
-    userId: string | null, 
-    action: string, 
-    resource: string, 
-    details: any,
-    ipAddress?: string
-  ): Promise<void> {
-    try {
-      await prisma.auditLog.create({
-        data: {
-          user_id: userId,
-          action,
-          resource,
-          details,
-          ip_address: ipAddress
-        }
-      })
-    } catch (error) {
-      console.error('记录审计日志失败:', error)
-      // 审计日志失败不应该影响主要操作
-    }
-  }
-
-  /**
-   * 获取用户统计信息
+   * 获取用户统计信息 - 简化版本
    */
   static async getUserStats() {
     try {
-      const [total, byRole] = await Promise.all([
-        prisma.user.count({
-          where: { deleted_at: null }
-        }),
-        prisma.user.groupBy({
-          by: ['role'],
-          where: { deleted_at: null },
-          _count: true
-        })
-      ])
-
-      return {
-        total,
-        byRole: byRole.reduce((acc, item) => {
-          acc[item.role] = item._count
-          return acc
-        }, {} as Record<string, number>)
-      }
+      const total = await prisma.user.count()
+      return { total }
     } catch (error) {
       console.error('获取用户统计失败:', error)
       throw new Error('获取用户统计失败')

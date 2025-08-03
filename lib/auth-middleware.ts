@@ -1,9 +1,24 @@
 import { redirect } from 'next/navigation'
-import { getCurrentUserServer } from './auth'
+import { getCurrentUserServer, SafeUser } from './auth'
 import { hasPermission, Permission } from './permissions'
 import { PAGE_ROUTES } from './constants'
 import { User } from '@/types/auth'
 import { SerializedUser } from './serialization'
+
+/**
+ * 将SafeUser转换为SerializedUser
+ * 解决Date vs string类型不兼容问题
+ */
+function safeUserToSerialized(user: SafeUser): SerializedUser {
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role as any, // 类型转换
+    created_at: user.created_at.toISOString(),
+    updated_at: user.updated_at.toISOString()
+  }
+}
 
 /**
  * 要求用户已认证
@@ -17,7 +32,7 @@ export async function requireAuth(): Promise<SerializedUser> {
     redirect(PAGE_ROUTES.LOGIN)
   }
 
-  return user
+  return safeUserToSerialized(user)
 }
 
 /**
@@ -56,7 +71,7 @@ export async function requireAnyPermission(permissions: Permission[]): Promise<U
 /**
  * 要求用户具有所有权限
  */
-export async function requireAllPermissions(permissions: Permission[]): Promise<User> {
+export async function requireAllPermissions(permissions: Permission[]): Promise<SerializedUser> {
   const user = await requireAuth()
   
   const hasAllPermissions = permissions.every(permission => 
@@ -73,9 +88,10 @@ export async function requireAllPermissions(permissions: Permission[]): Promise<
 /**
  * 可选认证 - 获取用户信息但不强制登录
  */
-export async function optionalAuth(): Promise<User | null> {
+export async function optionalAuth(): Promise<SerializedUser | null> {
   try {
-    return await getCurrentUserServer()
+    const user = await getCurrentUserServer()
+    return user ? safeUserToSerialized(user) : null
   } catch (error) {
     console.error('Optional auth error:', error)
     return null

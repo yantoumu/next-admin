@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       createSuccessResponse({
-        user: result.user
+        user: result
       }, '登录成功')
     )
     

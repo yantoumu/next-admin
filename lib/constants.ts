@@ -35,5 +35,6 @@ export const PAGE_ROUTES = {
   DASHBOARD: '/dashboard',
   USERS: '/dashboard/users',
   SETTINGS: '/dashboard/settings',
-  PROFILE: '/dashboard/profile'
+  PROFILE: '/dashboard/profile',
+  UNAUTHORIZED: '/unauthorized'
 } as const

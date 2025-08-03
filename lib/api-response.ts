@@ -168,3 +168,39 @@ export function createInternalErrorResponse(
     APIErrorCode.INTERNAL_ERROR
   )
 }
+
+/**
+ * 通用API错误处理器
+ */
+export function handleAPIError(error: unknown): NextResponse<APIResponse> {
+  console.error('API Error:', error)
+  
+  // 如果是已知的API错误
+  if (error instanceof Error) {
+    // JWT错误
+    if (error.message.includes('jwt') || error.message.includes('token')) {
+      return createUnauthorizedResponse('Invalid or expired token')
+    }
+    
+    // 权限错误
+    if (error.message.includes('permission') || error.message.includes('unauthorized')) {
+      return createForbiddenResponse(error.message)
+    }
+    
+    // 验证错误
+    if (error.message.includes('validation') || error.message.includes('invalid')) {
+      return createErrorResponse(error.message, 400, APIErrorCode.VALIDATION_ERROR)
+    }
+    
+    // 数据库错误
+    if (error.message.includes('database') || error.message.includes('prisma')) {
+      return createErrorResponse('Database operation failed', 500, APIErrorCode.DATABASE_ERROR)
+    }
+    
+    // 其他已知错误
+    return createErrorResponse(error.message, 400)
+  }
+  
+  // 未知错误
+  return createInternalErrorResponse('An unexpected error occurred')
+}

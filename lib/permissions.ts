@@ -21,6 +21,12 @@ export const PERMISSIONS = {
   'profile.view': ['super_admin', 'admin', 'member', 'viewer'],
   'profile.edit': ['super_admin', 'admin', 'member', 'viewer'],
   
+  // 域名管理
+  'domains.view': ['super_admin', 'admin', 'member', 'viewer'],
+  'domains.create': ['super_admin', 'admin'],
+  'domains.update': ['super_admin', 'admin'],
+  'domains.delete': ['super_admin'],
+  
 } as const
 
 export type Permission = keyof typeof PERMISSIONS

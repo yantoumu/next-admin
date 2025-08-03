@@ -4,61 +4,81 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a universal admin management framework built with Next.js 15 App Router, designed for rapid deployment and easy extension. The project uses a full-stack approach with server-rendered components and API routes.
+Next.js 15 enterprise admin dashboard with PostgreSQL database, JWT authentication, and role-based access control (RBAC). Built for production deployment with type safety and security-first architecture.
 
 ## Technology Stack
 
-- **Frontend**: Next.js 15 App Router + React 19
-- **Styling**: Tailwind CSS 4 + shadcn/ui components
-- **Auth**: Supabase Auth + custom RBAC system
-- **Database**: PostgreSQL (Supabase) with Prisma ORM
-- **Forms**: React Hook Form + Zod validation
-- **State**: TanStack Query for server state
-- **Build**: Turbopack
+### Core Framework
+- **Next.js 15** - App Router, Server Components, API Routes
+- **React 18** - Server-side rendering, React Hook Form for forms
+- **TypeScript 5** - Full type safety across the stack
+- **PostgreSQL** - Primary database with Prisma ORM
 
-## Critical Configuration Requirements
+### Authentication & Security
+- **JWT** - Token-based authentication (jsonwebtoken)
+- **bcrypt** - Password hashing and validation
+- **Zod** - Runtime validation for API inputs
+- **RBAC** - 4-tier role system with granular permissions
 
-### Tailwind CSS 4 + shadcn/ui Setup
-The project requires specific Tailwind configuration for shadcn/ui compatibility:
+### UI & Styling
+- **Tailwind CSS 3** - Utility-first CSS framework
+- **shadcn/ui** - Radix UI-based component library
+- **Lucide React** - Icon system
+- **next-themes** - Dark mode support
 
-1. **tailwind.config.ts must include**:
-   - Custom color variables using `hsl(var(--variable))` format
-   - Border radius variables
-   - Content paths for all component directories
+## Database Architecture
 
-2. **globals.css must define CSS variables**:
-   - Complete light/dark theme variables
-   - Both `:root` and `.dark` selectors
-   - All semantic color tokens (primary, secondary, muted, etc.)
-
-3. **Required shadcn/ui components**:
-   ```bash
-   npx shadcn-ui@latest add button input card table badge avatar dropdown-menu
-   ```
-
-## Architecture Patterns
-
-### Authentication & Authorization
-- **4-tier role system**: super_admin → admin → member → viewer
-- **Permission-based access control**: Each route/API checks specific permissions
-- **Server-side auth**: Use middleware for all protected routes
-- **Auth middleware pattern**:
-  ```typescript
-  // Always check auth first, then permissions
-  const user = await requireAuth()
-  await requirePermission('users.view')
-  ```
-
-### API Design Standards
-All API routes must follow this pattern:
-```typescript
-// 1. Permission check
-// 2. Input validation with Zod
-// 3. Business logic
-// 4. Standardized response format
+### PostgreSQL with Prisma
+```bash
+# Database commands
+npx prisma db push     # Sync schema with database
+npx prisma generate    # Generate Prisma Client
+npx tsx prisma/seed.ts # Seed initial data
 ```
 
-Response format:
+### User Model Schema
+- **Roles**: super_admin, admin, member, viewer
+- **Security**: bcrypt hashed passwords, JWT tokens
+- **Audit**: created_at, updated_at timestamps
+
+## Authentication System
+
+### JWT Implementation
+- Tokens stored in httpOnly cookies
+- 7-day expiration with secure flag in production
+- Payload includes userId, email, role
+- Token validation on every protected route
+
+### Role Hierarchy
+```
+super_admin (3) > admin (2) > member (1) > viewer (0)
+```
+
+### Permission Matrix
+- `users.*` - User management (super_admin, admin)
+- `settings.*` - System settings (super_admin only)
+- `dashboard.view` - Dashboard access (all roles)
+- `profile.*` - Profile management (all roles)
+
+## Development Commands
+
+```bash
+# Development
+npm run dev          # Start development server
+npm run build        # Production build
+npm run start        # Start production server
+
+# Code Quality
+npm run lint         # ESLint checks
+npm run type-check   # TypeScript validation
+
+# Database
+npm run seed         # Initialize default users
+```
+
+## API Design Pattern
+
+### Standard Response Format
 ```typescript
 interface APIResponse<T> {
   success: boolean
@@ -68,189 +88,172 @@ interface APIResponse<T> {
 }
 ```
 
-### Directory Structure
+### API Route Template
+```typescript
+// 1. Authentication check
+const user = await requireAuth()
+
+// 2. Permission validation
+await requirePermission('resource.action')
+
+// 3. Zod validation
+const validated = schema.parse(await request.json())
+
+// 4. Business logic with Prisma
+const result = await prisma.model.operation()
+
+// 5. Standardized response
+return NextResponse.json(createSuccessResponse(result))
+```
+
+## Project Structure
+
 ```
 app/
-├── (auth)/                    # Auth pages (login, register)
-├── dashboard/                 # Protected admin pages
-│   ├── layout.tsx            # Main dashboard layout with sidebar
-│   ├── users/                # User management
-│   ├── settings/             # System settings
-│   └── profile/              # User profile
-├── api/                      # API routes
-│   ├── auth/                 # Authentication endpoints
-│   ├── users/                # User CRUD operations
-│   └── settings/             # Settings endpoints
-components/
-├── ui/                       # shadcn/ui components
-├── dashboard/                # Dashboard-specific components
-│   ├── sidebar.tsx           # Navigation with permission filtering
-│   ├── header.tsx            # Top navigation
-│   └── page-header.tsx       # Standard page header
+├── (auth)/login/          # Public auth pages
+├── dashboard/             # Protected pages
+│   ├── users/            # User management
+│   ├── settings/         # System settings
+│   └── profile/          # User profile
+├── api/                  # API routes
+│   ├── auth/            # Auth endpoints
+│   └── users/           # CRUD operations
 lib/
-├── auth.ts                   # Auth utilities
-├── permissions.ts            # Permission definitions
-├── auth-middleware.ts        # Server middleware
-└── validations/              # Zod schemas
-types/
-└── auth.ts                   # Auth-related types
+├── db.ts                # Prisma client setup
+├── auth.ts              # JWT authentication
+├── auth-middleware.ts   # Permission checks
+├── permissions.ts       # RBAC definitions
+└── services/           # Business logic layer
 ```
 
-## Development Workflow
+## Security Checklist
 
-### Implementation Order (Critical)
-1. **Phase 1**: Project setup + Tailwind configuration
-2. **Phase 2**: Database schema + Supabase setup
-3. **Phase 3**: Auth middleware + permission system
-4. **Phase 4**: Dashboard layout + navigation
-5. **Phase 5**: User management CRUD
-6. **Phase 6**: Settings and profile pages
-
-### Key Commands
-```bash
-# Development
-npm run dev
-
-# Build
-npm run build
-
-# Type checking (always run before commits)
-npm run type-check
-
-# Linting (always run before commits)
-npm run lint
+### Environment Variables
+```env
+DATABASE_URL=postgresql://user:pass@host:5432/dbname
+JWT_SECRET=<32+ character secret>
+NODE_ENV=production
 ```
 
-## UI/UX Standards
+### Authentication Flow
+1. User submits email/password
+2. Validate credentials against PostgreSQL
+3. Generate JWT with user data
+4. Set httpOnly cookie with token
+5. Validate token on each request
+6. Check permissions for protected resources
 
-### Page Structure Template
-Every dashboard page should follow this structure:
+### Data Validation
+- Zod schemas for all API inputs
+- Prisma type safety for database queries
+- Server-side validation as authoritative source
+
+## Common Patterns
+
+### Page-Level Auth Check
 ```typescript
-import { PageHeader } from '@/components/dashboard/page-header'
-import { requirePermission } from '@/lib/auth-middleware'
-
-export default async function UsersPage() {
-  await requirePermission('users.view')
-  
-  return (
-    <>
-      <PageHeader 
-        title="User Management"
-        description="Manage system users and their permissions"
-        action={<CreateButton />}
-      />
-      <div className="space-y-6">
-        {/* Page content */}
-      </div>
-    </>
-  )
+export default async function ProtectedPage() {
+  await requirePermission('resource.view')
+  // Page content
 }
 ```
 
-### Component Patterns
-- **Permission-aware components**: Filter UI elements based on user permissions
-- **Form validation**: Always use Zod schemas with React Hook Form
-- **Loading states**: Implement proper loading and error states
-- **Mobile responsive**: All components must work on mobile devices
-
-## Security Requirements
-
-### Authentication Flow
-1. Supabase handles OAuth and email/password auth
-2. Server middleware validates JWT tokens
-3. User roles/permissions stored in database
-4. Session management via server-side cookies
-
-### Permission Checks
-- **Page level**: Every protected page must call `requirePermission()`
-- **API level**: Every API route must validate permissions
-- **UI level**: Conditionally render based on `hasPermission()`
-
-### Data Validation
-- All API inputs validated with Zod schemas
-- Server-side validation is authoritative
-- Client-side validation for UX only
-
-## Database Considerations
-
-### Multi-tenant Support
-The system supports both single and multi-tenant modes via `MULTI_TENANT` env var:
-- Single tenant: Direct user management
-- Multi-tenant: Organization → Membership → User hierarchy
-
-### Schema Patterns
-- Use Prisma for type-safe database operations
-- All tables include `created_at` and `updated_at`
-- Soft deletes for user data
-- Proper indexing on frequently queried fields
-
-## Environment Configuration
-
-Required environment variables:
-```env
-NEXT_PUBLIC_SUPABASE_URL=
-SUPABASE_ANON_KEY=
-SUPABASE_SERVICE_ROLE_KEY=
-MULTI_TENANT=false
-DATABASE_URL=
+### API Auth Middleware
+```typescript
+export async function GET() {
+  try {
+    await requirePermission('resource.view')
+    // Handler logic
+  } catch (error) {
+    return handleAPIError(error)
+  }
+}
 ```
 
-## Testing Strategy
+### Client-Side Permission Check
+```typescript
+<PermissionGuard permission="users.create">
+  <Button>Create User</Button>
+</PermissionGuard>
+```
 
-- Unit tests for utility functions
-- Integration tests for API routes
-- E2E tests for critical user flows
-- All tests must pass before deployment
+## Testing & Deployment
 
-## Deployment
+### Pre-deployment Checklist
+1. `npm run build` - No TypeScript errors
+2. `npm run lint` - Clean ESLint output
+3. Update JWT_SECRET for production
+4. Configure DATABASE_URL with SSL
+5. Set NODE_ENV=production
 
-Primary target: Cloudflare Workers (recommended)
-Alternative: Vercel
+### Default Test Accounts
+- admin@example.com / admin123456 (super_admin)
+- manager@example.com / manager123456 (admin)  
+- member@example.com / member123456 (member)
+- viewer@example.com / viewer123456 (viewer)
 
-The project is designed for serverless deployment with automatic scaling and global edge distribution.
+## Troubleshooting
 
-## Development Best Practices
+### Common Issues
+1. **JWT Errors**: Check JWT_SECRET is set and consistent
+2. **Database Connection**: Verify DATABASE_URL and PostgreSQL access
+3. **Permission Denied**: Confirm user role has required permissions
+4. **Build Errors**: Run `npm run type-check` to identify issues
 
-### Code Development Guidelines
-- 🔒 Three Fundamental Principles:
-  1. Do not modify architecture/dependencies/unrelated files
-  2. Do not implement unplanned/redundant functionality
-  3. Do not create new files/similar logic unnecessarily
+## Database Safety Guidelines
 
-- 🔍 Execution Rules:
-  1. Always check existing implementations & file existence before writing code
-  2. Decision-making process:
-     - Read documentation and project plan
-     - Analyze existing code
-     - Develop solution
-     - Choose the most optimal SOLID approach
-     - Execute modifications
-  3. Limit changes to current requirement scope
+### ⚠️ NEVER Use in Production:
+- ❌ `npx prisma db push` - Can overwrite schema and cause data loss
+- ❌ Direct schema modifications without backup
+- ❌ Untested migrations on production data
 
-- 🛡️ Defensive Checks:
-  - Validation Checklist:
-    1. SOLID compliance scan
-    2. Technical debt detection → Avoid introducing new debt
-  - Golden Verification:
-    ✅ SOLID
-    ✅ KISS
-    ✅ DRY
-    ✅ YAGNI
-    ✅ LoD (Law of Demeter)
+### ✅ ALWAYS Follow Safe Migration Process:
 
-- Post-Implementation Validation:
-  1. 100% alignment with documentation: Strictly follow specifications
-  2. Incremental verification: Validate after each stage, no bulk completion
+#### 1. Pre-Migration Safety Check
+```bash
+# Run safety check script
+npx tsx scripts/check-db-safety.ts
+```
 
-### Review Techniques
-After completing a module:
-1. Compare against PRD requirements, detail implementation status
-2. Verify architectural compliance with development guidelines
-3. List potential risks and improvement suggestions
-4. Provide implementation recommendations for next steps
-5. Avoid over-engineering, maintain document alignment
+#### 2. Backup Your Database
+```bash
+# PostgreSQL backup
+pg_dump -U username -h host -d database > backup_$(date +%Y%m%d_%H%M%S).sql
+```
 
-### Mandatory Verification Steps
-1. `npm run build` - Check build errors
-2. `npm run lint` - Verify code standards
-3. Synchronize with GitHub
+#### 3. Use Migration Scripts
+```bash
+# Option A: Prisma Migrate (Development)
+npx prisma migrate dev --create-only --name your_migration_name
+
+# Option B: Manual SQL (Production)
+psql -U username -h host -d database < prisma/migrations/manual_add_tasks.sql
+```
+
+#### 4. Verify Changes
+```bash
+# Regenerate Prisma Client
+npx prisma generate
+
+# Test the changes
+npm run dev
+```
+
+#### 5. Rollback Plan
+```sql
+-- If something goes wrong, use rollback script
+psql -U username -h host -d database < prisma/migrations/rollback_tasks.sql
+```
+
+### Migration Files Provided:
+- `prisma/migrations/manual_add_tasks.sql` - Safe migration script for tasks
+- `prisma/migrations/rollback_tasks.sql` - Rollback script if needed
+- `scripts/check-db-safety.ts` - Pre-migration safety check
+
+### Production Checklist:
+1. ✅ Run safety check script first
+2. ✅ Always backup before migrations
+3. ✅ Test on staging environment
+4. ✅ Use transactions for SQL execution
+5. ✅ Have rollback plan ready
+6. ✅ Monitor after deployment

@@ -24,6 +24,12 @@ const menuItems: MenuItem[] = [
     permission: 'dashboard.view'
   },
   {
+    name: '站找词',
+    href: '/dashboard/domains',
+    icon: '🔍',
+    permission: 'domains.view'
+  },
+  {
     name: '用户管理',
     href: PAGE_ROUTES.USERS,
     icon: '👥',

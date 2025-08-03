@@ -1,24 +1,14 @@
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
-import jwt from 'jsonwebtoken'
-import bcrypt from 'bcryptjs'
-import { prisma } from '@/lib/db'
-import { UserService, SafeUser } from '@/lib/services/user.service'
-import { UserRole } from '@prisma/client'
+import { User, UserRole } from '@/types/auth'
 import { PAGE_ROUTES } from './constants'
+import dbConnect from './db'
+import UserModel from './models/User'
+import bcrypt from 'bcryptjs'
+import jwt from 'jsonwebtoken'
+import { serializeUser, SerializedUser } from './serialization'
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'
-
-/**
- * PostgreSQL认证系统
- * 
- * 安全特性：
- * - JWT token验证和管理
- * - 密码安全哈希验证
- * - 账户锁定机制
- * - 会话管理和黑名单
- * - SQL注入防护（Prisma）
- */
 
 /**
  * 清除无效的认证token
@@ -62,11 +52,12 @@ function validateJWTFormat(token: string): boolean {
 }
 
 /**
- * 获取当前用户信息
+ * 获取当前用户信息 (客户端)
+ * 返回序列化安全的用户对象
  */
-export async function getCurrentUser(): Promise<SafeUser | null> {
+export async function getCurrentUser(): Promise<SerializedUser | null> {
   try {
-    const cookieStore = cookies()
+    const cookieStore = await cookies()
     const token = cookieStore.get('auth-token')?.value
 
     if (!token) {
@@ -97,7 +88,7 @@ export async function getCurrentUser(): Promise<SafeUser | null> {
         secretLength: JWT_SECRET.length,
         tokenStart: token.substring(0, 20) + '...'
       })
-      
+
       // 清除无效token
       await clearAuthToken()
       return null
@@ -110,20 +101,8 @@ export async function getCurrentUser(): Promise<SafeUser | null> {
       return null
     }
 
-    // 检查token是否在黑名单中
-    const tokenHash = require('crypto').createHash('sha256').update(token).digest('hex')
-    const session = await prisma.userSession.findUnique({
-      where: { token_hash: tokenHash }
-    })
-
-    if (session && session.revoked_at) {
-      console.error('Token has been revoked')
-      await clearAuthToken()
-      return null
-    }
-
-    // 获取用户信息
-    const user = await UserService.getUserById(decoded.userId)
+    await dbConnect()
+    const user = await UserModel.findById(decoded.userId).select('-password')
 
     if (!user) {
       console.error('User not found for userId:', decoded.userId)
@@ -131,14 +110,8 @@ export async function getCurrentUser(): Promise<SafeUser | null> {
       return null
     }
 
-    // 检查账户是否被锁定
-    if (user.locked_until && user.locked_until > new Date()) {
-      console.error('User account is locked until:', user.locked_until)
-      await clearAuthToken()
-      return null
-    }
-
-    return user
+    // 使用序列化函数确保返回的对象是序列化安全的
+    return serializeUser(user)
   } catch (error) {
     console.error('Error getting current user:', error)
     return null
@@ -146,21 +119,35 @@ export async function getCurrentUser(): Promise<SafeUser | null> {
 }
 
 /**
- * 服务端获取当前用户（用于页面组件）
+ * 获取当前用户信息 (服务端) - 优化版
+ * 支持静态渲染，避免Dynamic Server Usage错误
+ * 返回序列化安全的用户对象
  */
-export async function getCurrentUserServer(): Promise<SafeUser | null> {
-  return await getCurrentUser()
+export async function getCurrentUserServer(isStatic = false): Promise<SerializedUser | null> {
+  try {
+    // 静态渲染时直接返回null，避免使用cookies
+    if (isStatic) {
+      return null
+    }
+
+    return await getCurrentUser()
+  } catch (error) {
+    console.error('Error getting current user (server):', error)
+    return null
+  }
 }
 
 /**
  * 用户登录
  */
-export async function loginUser(email: string, password: string, ipAddress?: string) {
+export async function loginUser(email: string, password: string) {
   try {
-    console.log('🔍 查找用户:', { email })
+    await dbConnect()
 
-    // 获取用户信息（包含密码）
-    const user = await UserService.getUserByEmailWithPassword(email)
+    // 查找用户 - 添加调试日志
+    console.log('🔍 查找用户:', { email, modelName: UserModel.modelName })
+
+    const user = await UserModel.findOne({ email }).select('+password')
     console.log('📊 查询结果:', {
       found: !!user,
       userEmail: user?.email,
@@ -169,27 +156,19 @@ export async function loginUser(email: string, password: string, ipAddress?: str
 
     if (!user) {
       // 检查数据库中是否有任何用户
-      const stats = await UserService.getUserStats()
-      console.log('📈 数据库用户总数:', stats.total)
+      const totalUsers = await UserModel.countDocuments()
+      console.log('📈 数据库用户总数:', totalUsers)
 
-      if (stats.total === 0) {
+      if (totalUsers === 0) {
         throw new Error('数据库中没有用户数据，请先初始化数据')
       } else {
         throw new Error('用户不存在')
       }
     }
 
-    // 检查账户是否被锁定
-    if (user.locked_until && user.locked_until > new Date()) {
-      throw new Error('账户已被锁定，请稍后再试')
-    }
-
     // 验证密码
     const isValidPassword = await bcrypt.compare(password, user.password!)
-    
     if (!isValidPassword) {
-      // 更新登录失败信息
-      await UserService.updateLoginInfo(user.id, false, ipAddress)
       throw new Error('密码错误')
     }
 
@@ -201,35 +180,23 @@ export async function loginUser(email: string, password: string, ipAddress?: str
 
     // 生成JWT token with enhanced payload
     const payload = {
-      userId: user.id,
+      userId: user._id.toString(),
       email: user.email,
       role: user.role,
       iat: Math.floor(Date.now() / 1000), // issued at
-      jti: `${user.id}_${Date.now()}` // JWT ID for uniqueness
+      jti: `${user._id}_${Date.now()}` // JWT ID for uniqueness
     }
 
-    const token = jwt.sign(payload, JWT_SECRET, { 
+    const token = jwt.sign(payload, JWT_SECRET, {
       expiresIn: '7d',
       algorithm: 'HS256' // 明确指定算法
     })
 
     console.log('Generated JWT token for user:', {
-      userId: user.id,
+      userId: user._id.toString(),
       email: user.email,
       tokenLength: token.length,
       secretLength: JWT_SECRET.length
-    })
-
-    // 创建会话记录
-    const tokenHash = require('crypto').createHash('sha256').update(token).digest('hex')
-    await prisma.userSession.create({
-      data: {
-        user_id: user.id,
-        token_hash: tokenHash,
-        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7天
-        ip_address: ipAddress,
-        user_agent: undefined // 可以从请求头获取
-      }
     })
 
     // 设置cookie
@@ -242,12 +209,7 @@ export async function loginUser(email: string, password: string, ipAddress?: str
       path: '/' // 确保cookie在整个应用中可用
     })
 
-    // 更新登录成功信息
-    await UserService.updateLoginInfo(user.id, true, ipAddress)
-
-    // 返回用户信息（不包含密码）
-    const { password: _, ...safeUser } = user
-    return safeUser
+    return { user: user.toJSON(), token }
   } catch (error) {
     console.error('Login error:', error)
     throw error
@@ -255,23 +217,42 @@ export async function loginUser(email: string, password: string, ipAddress?: str
 }
 
 /**
- * 用户登出
+ * 用户注册
  */
-export async function logoutUser(): Promise<void> {
+export async function registerUser(email: string, password: string, name: string, role: UserRole = 'member') {
   try {
-    const cookieStore = cookies()
-    const token = cookieStore.get('auth-token')?.value
+    await dbConnect()
 
-    if (token) {
-      // 将token加入黑名单
-      const tokenHash = require('crypto').createHash('sha256').update(token).digest('hex')
-      await prisma.userSession.updateMany({
-        where: { token_hash: tokenHash },
-        data: { revoked_at: new Date() }
-      })
+    // 检查用户是否已存在
+    const existingUser = await UserModel.findOne({ email })
+    if (existingUser) {
+      throw new Error('用户已存在')
     }
 
-    // 清除cookie
+    // 加密密码
+    const hashedPassword = await bcrypt.hash(password, 12)
+
+    // 创建用户
+    const user = await UserModel.create({
+      email,
+      password: hashedPassword,
+      name,
+      role
+    })
+
+    return user.toJSON()
+  } catch (error) {
+    console.error('Registration error:', error)
+    throw error
+  }
+}
+
+/**
+ * 用户登出
+ */
+export async function logoutUser() {
+  try {
+    const cookieStore = await cookies()
     cookieStore.delete('auth-token')
   } catch (error) {
     console.error('Logout error:', error)
@@ -280,34 +261,37 @@ export async function logoutUser(): Promise<void> {
 }
 
 /**
- * 权限检查中间件
+ * 重置密码 (简化版本，实际项目中需要邮件服务)
  */
-export async function requireAuth(): Promise<SafeUser> {
-  const user = await getCurrentUser()
-  
-  if (!user) {
-    redirect(PAGE_ROUTES.LOGIN)
+export async function resetPassword(email: string, newPassword: string) {
+  try {
+    await dbConnect()
+
+    const user = await UserModel.findOne({ email })
+    if (!user) {
+      throw new Error('用户不存在')
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 12)
+    await UserModel.findByIdAndUpdate(user._id, { password: hashedPassword })
+
+    return { success: true }
+  } catch (error) {
+    console.error('Reset password error:', error)
+    throw error
   }
-  
-  return user
 }
 
 /**
- * 角色权限检查
+ * 验证JWT token
  */
-export async function requireRole(requiredRole: UserRole): Promise<SafeUser> {
-  const user = await requireAuth()
-  
-  const roleHierarchy = {
-    [UserRole.VIEWER]: 0,
-    [UserRole.MEMBER]: 1,
-    [UserRole.ADMIN]: 2,
-    [UserRole.SUPER_ADMIN]: 3
+export async function verifyToken(token: string) {
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as any
+    return decoded
+  } catch (error) {
+    console.error('Token verification error:', error)
+    return null
   }
-  
-  if (roleHierarchy[user.role] < roleHierarchy[requiredRole]) {
-    redirect(PAGE_ROUTES.UNAUTHORIZED)
-  }
-  
-  return user
 }
+

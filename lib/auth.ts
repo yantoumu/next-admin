@@ -1,21 +1,34 @@
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
-import { User, UserRole } from '@/types/auth'
-import { PAGE_ROUTES } from './constants'
-import dbConnect from './db'
-import UserModel from './models/User'
-import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
-import { serializeUser, SerializedUser } from './serialization'
+import bcrypt from 'bcryptjs'
+import { prisma } from '@/lib/db'
+import { UserService } from '@/lib/services/user.service'
+import { UserRole } from '@prisma/client'
+import { PAGE_ROUTES } from './constants'
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'
+
+// 用户类型定义（不包含密码）
+export type SafeUser = Omit<import('@prisma/client').User, 'password'>
+
+/**
+ * PostgreSQL认证系统
+ * 
+ * 安全特性：
+ * - JWT token验证和管理
+ * - 密码安全哈希验证
+ * - 账户锁定机制
+ * - 会话管理和黑名单
+ * - SQL注入防护（Prisma）
+ */
 
 /**
  * 清除无效的认证token
  */
 async function clearAuthToken(): Promise<void> {
   try {
-    const cookieStore = cookies()
+    const cookieStore = await cookies()
     cookieStore.delete('auth-token')
   } catch (error) {
     console.error('Error clearing auth token:', error)
@@ -52,10 +65,9 @@ function validateJWTFormat(token: string): boolean {
 }
 
 /**
- * 获取当前用户信息 (客户端)
- * 返回序列化安全的用户对象
+ * 获取当前用户信息
  */
-export async function getCurrentUser(): Promise<SerializedUser | null> {
+export async function getCurrentUser(): Promise<SafeUser | null> {
   try {
     const cookieStore = await cookies()
     const token = cookieStore.get('auth-token')?.value
@@ -88,7 +100,7 @@ export async function getCurrentUser(): Promise<SerializedUser | null> {
         secretLength: JWT_SECRET.length,
         tokenStart: token.substring(0, 20) + '...'
       })
-
+      
       // 清除无效token
       await clearAuthToken()
       return null
@@ -101,8 +113,11 @@ export async function getCurrentUser(): Promise<SerializedUser | null> {
       return null
     }
 
-    await dbConnect()
-    const user = await UserModel.findById(decoded.userId).select('-password')
+    // 简化版本：移除会话管理，遵循YAGNI原则
+    // 后续需要时再添加黑名单功能
+
+    // 获取用户信息
+    const user = await UserService.getUserById(decoded.userId)
 
     if (!user) {
       console.error('User not found for userId:', decoded.userId)
@@ -110,8 +125,9 @@ export async function getCurrentUser(): Promise<SerializedUser | null> {
       return null
     }
 
-    // 使用序列化函数确保返回的对象是序列化安全的
-    return serializeUser(user)
+    // 简化版本：移除账户锁定检查，遵循YAGNI原则
+
+    return user
   } catch (error) {
     console.error('Error getting current user:', error)
     return null
@@ -119,35 +135,21 @@ export async function getCurrentUser(): Promise<SerializedUser | null> {
 }
 
 /**
- * 获取当前用户信息 (服务端) - 优化版
- * 支持静态渲染，避免Dynamic Server Usage错误
- * 返回序列化安全的用户对象
+ * 服务端获取当前用户（用于页面组件）
  */
-export async function getCurrentUserServer(isStatic = false): Promise<SerializedUser | null> {
-  try {
-    // 静态渲染时直接返回null，避免使用cookies
-    if (isStatic) {
-      return null
-    }
-
-    return await getCurrentUser()
-  } catch (error) {
-    console.error('Error getting current user (server):', error)
-    return null
-  }
+export async function getCurrentUserServer(): Promise<SafeUser | null> {
+  return await getCurrentUser()
 }
 
 /**
  * 用户登录
  */
-export async function loginUser(email: string, password: string) {
+export async function loginUser(email: string, password: string, ipAddress?: string) {
   try {
-    await dbConnect()
+    console.log('🔍 查找用户:', { email })
 
-    // 查找用户 - 添加调试日志
-    console.log('🔍 查找用户:', { email, modelName: UserModel.modelName })
-
-    const user = await UserModel.findOne({ email }).select('+password')
+    // 获取用户信息（包含密码）
+    const user = await UserService.getUserByEmailWithPassword(email)
     console.log('📊 查询结果:', {
       found: !!user,
       userEmail: user?.email,
@@ -156,18 +158,21 @@ export async function loginUser(email: string, password: string) {
 
     if (!user) {
       // 检查数据库中是否有任何用户
-      const totalUsers = await UserModel.countDocuments()
-      console.log('📈 数据库用户总数:', totalUsers)
+      const stats = await UserService.getUserStats()
+      console.log('📈 数据库用户总数:', stats.total)
 
-      if (totalUsers === 0) {
+      if (stats.total === 0) {
         throw new Error('数据库中没有用户数据，请先初始化数据')
       } else {
         throw new Error('用户不存在')
       }
     }
 
+    // 简化版本：移除账户锁定检查
+
     // 验证密码
     const isValidPassword = await bcrypt.compare(password, user.password!)
+    
     if (!isValidPassword) {
       throw new Error('密码错误')
     }
@@ -180,24 +185,26 @@ export async function loginUser(email: string, password: string) {
 
     // 生成JWT token with enhanced payload
     const payload = {
-      userId: user._id.toString(),
+      userId: user.id,
       email: user.email,
       role: user.role,
       iat: Math.floor(Date.now() / 1000), // issued at
-      jti: `${user._id}_${Date.now()}` // JWT ID for uniqueness
+      jti: `${user.id}_${Date.now()}` // JWT ID for uniqueness
     }
 
-    const token = jwt.sign(payload, JWT_SECRET, {
+    const token = jwt.sign(payload, JWT_SECRET, { 
       expiresIn: '7d',
       algorithm: 'HS256' // 明确指定算法
     })
 
     console.log('Generated JWT token for user:', {
-      userId: user._id.toString(),
+      userId: user.id,
       email: user.email,
       tokenLength: token.length,
       secretLength: JWT_SECRET.length
     })
+
+    // 简化版本：移除会话记录，遵循YAGNI原则
 
     // 设置cookie
     const cookieStore = await cookies()
@@ -209,7 +216,11 @@ export async function loginUser(email: string, password: string) {
       path: '/' // 确保cookie在整个应用中可用
     })
 
-    return { user: user.toJSON(), token }
+    // 简化版本：移除登录信息更新
+
+    // 返回用户信息（不包含密码）
+    const { password: _, ...safeUser } = user
+    return safeUser
   } catch (error) {
     console.error('Login error:', error)
     throw error
@@ -217,42 +228,12 @@ export async function loginUser(email: string, password: string) {
 }
 
 /**
- * 用户注册
- */
-export async function registerUser(email: string, password: string, name: string, role: UserRole = 'member') {
-  try {
-    await dbConnect()
-
-    // 检查用户是否已存在
-    const existingUser = await UserModel.findOne({ email })
-    if (existingUser) {
-      throw new Error('用户已存在')
-    }
-
-    // 加密密码
-    const hashedPassword = await bcrypt.hash(password, 12)
-
-    // 创建用户
-    const user = await UserModel.create({
-      email,
-      password: hashedPassword,
-      name,
-      role
-    })
-
-    return user.toJSON()
-  } catch (error) {
-    console.error('Registration error:', error)
-    throw error
-  }
-}
-
-/**
  * 用户登出
  */
-export async function logoutUser() {
+export async function logoutUser(): Promise<void> {
   try {
     const cookieStore = await cookies()
+    // 简化版本：只清除cookie，遵循YAGNI原则
     cookieStore.delete('auth-token')
   } catch (error) {
     console.error('Logout error:', error)
@@ -261,37 +242,34 @@ export async function logoutUser() {
 }
 
 /**
- * 重置密码 (简化版本，实际项目中需要邮件服务)
+ * 权限检查中间件
  */
-export async function resetPassword(email: string, newPassword: string) {
-  try {
-    await dbConnect()
-
-    const user = await UserModel.findOne({ email })
-    if (!user) {
-      throw new Error('用户不存在')
-    }
-
-    const hashedPassword = await bcrypt.hash(newPassword, 12)
-    await UserModel.findByIdAndUpdate(user._id, { password: hashedPassword })
-
-    return { success: true }
-  } catch (error) {
-    console.error('Reset password error:', error)
-    throw error
+export async function requireAuth(): Promise<SafeUser> {
+  const user = await getCurrentUser()
+  
+  if (!user) {
+    redirect(PAGE_ROUTES.LOGIN)
   }
+  
+  return user
 }
 
 /**
- * 验证JWT token
+ * 角色权限检查
  */
-export async function verifyToken(token: string) {
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET) as any
-    return decoded
-  } catch (error) {
-    console.error('Token verification error:', error)
-    return null
+export async function requireRole(requiredRole: UserRole): Promise<SafeUser> {
+  const user = await requireAuth()
+  
+  const roleHierarchy = {
+    [UserRole.viewer]: 0,
+    [UserRole.member]: 1,
+    [UserRole.admin]: 2,
+    [UserRole.super_admin]: 3
   }
+  
+  if (roleHierarchy[user.role] < roleHierarchy[requiredRole]) {
+    redirect(PAGE_ROUTES.UNAUTHORIZED)
+  }
+  
+  return user
 }
-

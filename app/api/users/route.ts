@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
-import crypto from 'crypto'
+import { prisma } from '@/lib/db'
+import { UserService } from '@/lib/services/user.service'
 import { createSuccessResponse, createErrorResponse, createPaginatedResponse, APIErrorCode } from '@/lib/api-response'
 import { requirePermission } from '@/lib/auth-middleware'
 import { createUserSchema, usersQuerySchema } from '@/lib/validations/user'
 import { APIError } from '@/lib/error-handler'
-
-const prisma = new PrismaClient()
+import { UserRole } from '@prisma/client'
 
 /**
  * GET /api/users - 获取用户列表（分页、搜索、筛选、排序）
@@ -45,7 +44,9 @@ export async function GET(request: NextRequest) {
     const orderBy: any = {}
     orderBy[sort] = order
     
-    // 执行查询
+    // 执行查询 - 添加软删除过滤
+    where.deleted_at = null
+
     const [users, total] = await Promise.all([
       prisma.user.findMany({
         where,
@@ -59,6 +60,7 @@ export async function GET(request: NextRequest) {
           role: true,
           created_at: true,
           updated_at: true,
+
           // 不返回密码字段
         }
       }),
@@ -110,38 +112,12 @@ export async function POST(request: NextRequest) {
     const validatedData = createUserSchema.parse(body)
     const { name, email, password, role } = validatedData
     
-    // 检查邮箱是否已存在
-    const existingUser = await prisma.user.findUnique({
-      where: { email }
-    })
-    
-    if (existingUser) {
-      return NextResponse.json(
-        createErrorResponse('该邮箱已被注册', 409, APIErrorCode.VALIDATION_ERROR)
-      )
-    }
-    
-    // 加密密码 (使用SHA-256 + salt)
-    const salt = crypto.randomBytes(16).toString('hex')
-    const hashedPassword = crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha256').toString('hex') + ':' + salt
-    
-    // 创建用户
-    const newUser = await prisma.user.create({
-      data: {
-        name,
-        email,
-        password: hashedPassword,
-        role,
-      },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        created_at: true,
-        updated_at: true,
-        // 不返回密码字段
-      }
+    // 使用UserService创建用户（包含安全验证和审计日志）
+    const newUser = await UserService.createUser({
+      name,
+      email,
+      password,
+      role: role as UserRole
     })
     
     return NextResponse.json(

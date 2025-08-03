@@ -1,30 +1,104 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
+// PostgreSQL Prisma Schema for Next.js Admin System
+// 安全设计：防SQL注入 + 数据完整性保障
 
 generator client {
   provider = "prisma-client-js"
+  // 启用类型安全的查询构建器
+  previewFeatures = ["typedSql"]
 }
 
 datasource db {
-  provider = "mongodb"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
+  // 连接池配置，提升性能和安全性
+  relationMode = "prisma"
 }
 
+// 用户表 - 简化版本，遵循YAGNI原则
 model User {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  email       String   @unique
-  password    String?
-  name        String?
-  role        UserRole @default(member)
-  created_at  DateTime @default(now())
-  updated_at  DateTime @updatedAt
-  
+  id         String   @id @default(cuid())
+  email      String   @unique @db.VarChar(255)
+  password   String   @db.VarChar(255)
+  name       String?  @db.VarChar(100)
+  role       UserRole @default(member)
+
+  // 基础审计字段
+  created_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+
+  // 基础索引
+  @@index([email])
+  @@index([role])
+  @@index([created_at])
+
   @@map("users")
 }
 
+// 用户角色枚举 - 简化版本
 enum UserRole {
   super_admin
   admin
   member
   viewer
 }
+
+// 域名信息表 - 用于存储域名注册、流量等数据
+model DomainInfo {
+  id                String   @id @default(cuid())
+  domain            String   @unique @db.VarChar(255)
+  tld               String?  @db.VarChar(10)
+  
+  // 注册信息
+  registration_date DateTime? @db.Timestamptz
+  expiration_date   DateTime? @db.Timestamptz
+  updated_date      DateTime? @db.Timestamptz
+  registrar         String?   @db.VarChar(255)
+  nameservers       String[]  @db.Text
+  
+  // 流量数据
+  global_rank       Int?
+  monthly_visits    BigInt?
+  bounce_rate       Decimal? @db.Decimal(5, 2)
+  pages_per_visit   Decimal? @db.Decimal(10, 2)
+  avg_visit_duration Int?    // 秒数
+  
+  // 流量来源分布 (百分比)
+  traffic_direct    Decimal? @db.Decimal(5, 2)
+  traffic_search    Decimal? @db.Decimal(5, 2)
+  traffic_social    Decimal? @db.Decimal(5, 2)
+  traffic_referral  Decimal? @db.Decimal(5, 2)
+  
+  // 查询标记
+  traffic_queried   Boolean  @default(false)
+  whois_queried     Boolean  @default(false)
+  
+  // 分类信息
+  category          String?  @db.VarChar(100)
+  is_adult          Boolean  @default(false)
+  is_movie          Boolean  @default(false)
+  is_trending       Boolean  @default(false)
+  
+  // 地理信息
+  country_code      String?  @db.VarChar(2)
+  country_rank      Int?
+  
+  // 时间戳
+  last_updated      DateTime? @db.Timestamptz
+  created_at        DateTime  @default(now()) @db.Timestamptz
+  updated_at        DateTime  @updatedAt @db.Timestamptz
+  
+  // 索引优化
+  @@index([domain])
+  @@index([tld])
+  @@index([global_rank])
+  @@index([country_code])
+  @@index([created_at])
+  @@index([is_trending])
+  
+  @@map("domain_info")
+}
+
+
+
+// 移除过度设计的表，遵循YAGNI原则
+// 后续需要时再添加
