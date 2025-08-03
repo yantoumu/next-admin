@@ -88,33 +88,14 @@ const SidebarComponent = function Sidebar({ user, isCollapsed = false, onToggleC
            item.children.some(child => pathname.startsWith(child.href))
   }, [expandedItems, pathname])
 
-  // 缓存过滤后的菜单项，只有当用户角色变化时才重新计算
-  const filteredMenuItems = useMemo(() => {
-    return menuItems.map(item => {
-      // 如果item本身需要权限但用户没有，返回null
-      if (item.permission && !hasPermission(user.role, item.permission as any)) {
-        return null
-      }
-      
-      // 如果有子菜单，过滤子菜单
-      if (item.children) {
-        const filteredChildren = item.children.filter(child =>
-          !child.permission || hasPermission(user.role, child.permission as any)
-        )
-        
-        // 如果过滤后没有子菜单了，返回没有children的item
-        if (filteredChildren.length === 0) {
-          const { children, ...itemWithoutChildren } = item
-          return itemWithoutChildren
-        }
-        
-        // 返回带有过滤后children的新item
-        return { ...item, children: filteredChildren }
-      }
-      
-      return item
-    }).filter(Boolean) as MenuItem[] // 过滤掉null项
-  }, [user.role]) // 只依赖用户角色，避免不必要的重新计算
+  // 过滤菜单项
+  const filteredMenuItems = menuItems.filter(item => {
+    // 检查主菜单权限
+    if (item.permission && !hasPermission(user.role, item.permission as any)) {
+      return false
+    }
+    return true
+  })
 
   return (
     <div className={`flex flex-col h-full transition-all duration-300 ${isCollapsed ? 'w-16' : 'w-64'}`}>
@@ -190,20 +171,22 @@ const SidebarComponent = function Sidebar({ user, isCollapsed = false, onToggleC
             {/* 子菜单 */}
             {!isCollapsed && item.children && shouldExpand(item) && (
               <div className="ml-6 mt-2 space-y-1 animate-in slide-in-from-top-2 duration-200">
-                {item.children.map((child) => (
-                  <Link
-                    key={child.href}
-                    href={child.href}
-                    className={`flex items-center px-3 py-2 rounded-md text-sm transition-colors ${
-                      pathname === child.href
-                        ? 'bg-blue-50 text-blue-600'
-                        : 'text-gray-600 hover:bg-gray-50'
-                    }`}
-                  >
-                    <span className="mr-2">{child.icon}</span>
-                    {child.name}
-                  </Link>
-                ))}
+                {item.children
+                  .filter(child => !child.permission || hasPermission(user.role, child.permission as any))
+                  .map((child) => (
+                    <Link
+                      key={child.href}
+                      href={child.href}
+                      className={`flex items-center px-3 py-2 rounded-md text-sm transition-colors ${
+                        pathname === child.href
+                          ? 'bg-blue-50 text-blue-600'
+                          : 'text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      <span className="mr-2">{child.icon}</span>
+                      {child.name}
+                    </Link>
+                  ))}
               </div>
             )}
           </div>
